@@ -1,0 +1,63 @@
+import Sale from "../models/Sale.js";
+import Product from "../models/Product.js";
+
+export const createSale = async (req, res) => {
+	try {
+		const { items } = req.body;
+
+		if (!items || items.length === 0)
+			return res.status(400).json({ message: "No se enviaron productos" });
+
+		let total = 0;
+		const saleItems = [];
+
+		for (const item of items) {
+			const product = await Product.findById(item.product);
+
+			if (!product) {
+				return res.status(404).json({ message: `Producto no encontrado: ${item.product}` });
+			}
+
+			if (product.stock < item.quantity) {
+				return res.status(400).json({ message: `Stock insuficiente para ${product.name}` });
+			}
+
+			product.stock -= item.quantity;
+			await product.save();
+
+			const subtotal = product.price * item.quantity;
+			total += subtotal;
+
+			saleItems.push({
+				product: product._id,
+				quantity: item.quantity,
+				price: product.price
+			});
+		}
+
+		const sale = await Sale.create({
+			user: req.user.id,
+			items: saleItems,
+			total
+		});
+
+		res.status(201).json(sale);
+
+	} catch (error) {
+		res.status(500).json({ message: "Error creando venta", error });
+	}
+};
+
+export const getSales = async (req, res) => {
+	try {
+		const sales = await Sale.find()
+			.populate("user", "name email")
+			.populate("items.product", "name category price");
+
+		res.json(sales);
+
+	} catch (error) {
+		res.status(500).json({ message: "Error obteniendo ventas" });
+	}
+};
+
