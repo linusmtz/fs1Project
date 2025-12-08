@@ -5,7 +5,8 @@ const userSchema = new mongoose.Schema({
 	name: { type: String, required: true },
 	email: { type: String, unique: true, required: true },
 	password: { type: String, required: true },
-	role: { type: String, enum: ["admin", "vendedor"], default: "vendedor" }
+	role: { type: String, enum: ["admin", "vendedor"], default: "vendedor" },
+	active: { type: Boolean, default: true }
 }, { timestamps: true });
 
 userSchema.pre("save", async function () {
@@ -19,4 +20,3 @@ userSchema.methods.comparePassword = async function (password) {
 };
 
 export default mongoose.model("User", userSchema);
-

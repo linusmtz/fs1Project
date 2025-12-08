@@ -8,6 +8,10 @@ export const login = async (req, res) => {
 		const user = await User.findOne({ email });
 		if (!user) return res.status(400).json({ message: "Credenciales inválidas" });
 
+		if (!user.active) {
+			return res.status(403).json({ message: "La cuenta está desactivada. Contacta al administrador." });
+		}
+
 		const isMatch = await user.comparePassword(password);
 		if (!isMatch) return res.status(400).json({ message: "Credenciales inválidas" });
 
@@ -32,7 +36,6 @@ export const login = async (req, res) => {
 		});
 
 	} catch (err) {
-		res.status(500).json({ message: "Error en login", err });
+		res.status(500).json({ message: "Error en login", error: err.message });
 	}
 };
-
