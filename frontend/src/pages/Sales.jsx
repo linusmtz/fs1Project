@@ -107,6 +107,49 @@ export default function Sales() {
     setSaleItems(saleItems.filter((_, i) => i !== index));
   };
 
+  const updateItemQuantity = (index, newQuantity) => {
+    const item = saleItems[index];
+    const product = products.find((p) => p._id === item.product);
+    
+    if (!product) {
+      setError("Producto no encontrado");
+      return;
+    }
+
+    // Si es string vacío, permitir que se borre temporalmente
+    if (newQuantity === "") {
+      const updatedItems = [...saleItems];
+      updatedItems[index] = { ...updatedItems[index], quantity: "" };
+      setSaleItems(updatedItems);
+      setError("");
+      return;
+    }
+
+    const quantity = parseInt(newQuantity, 10);
+    
+    if (isNaN(quantity) || quantity < 1) {
+      setError("La cantidad debe ser mayor a 0");
+      return;
+    }
+
+    // Calcular stock disponible considerando otros items del mismo producto en la venta
+    const otherItemsQuantity = saleItems
+      .filter((it, i) => i !== index && it.product === item.product)
+      .reduce((sum, it) => sum + (it.quantity || 0), 0);
+    
+    const availableStock = product.stock - otherItemsQuantity;
+
+    if (quantity > availableStock) {
+      setError(`Stock insuficiente. Disponible: ${availableStock} (considerando otros items en la venta)`);
+      return;
+    }
+
+    const updatedItems = [...saleItems];
+    updatedItems[index] = { ...updatedItems[index], quantity };
+    setSaleItems(updatedItems);
+    setError("");
+  };
+
   const createSale = async () => {
     if (saleItems.length === 0) {
       setError("Agrega al menos un producto a la venta");
@@ -419,28 +462,65 @@ export default function Sales() {
                         key={`${item.product}-${index}`}
                         className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border-2 border-gray-200 hover:border-indigo-300 transition-all group"
                       >
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 flex-1">
                           <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg flex items-center justify-center">
                             <svg className="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                             </svg>
                           </div>
-                          <div>
+                          <div className="flex-1">
                             <p className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
                               {product.name}
                             </p>
                             <p className="text-sm text-gray-600 font-medium">
-                              ${Number(product.price).toFixed(2)} × {item.quantity}
+                              ${Number(product.price).toFixed(2)} c/u • Stock: {product.stock}
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <p className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                            ${(Number(product.price) * item.quantity).toFixed(2)}
-                          </p>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs font-semibold text-gray-500">Cantidad:</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max={product.stock}
+                              value={item.quantity}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === "" || (!isNaN(value) && parseInt(value) >= 1)) {
+                                  updateItemQuantity(index, value);
+                                }
+                              }}
+                              onBlur={(e) => {
+                                const value = parseInt(e.target.value, 10);
+                                if (isNaN(value) || value < 1) {
+                                  updateItemQuantity(index, 1);
+                                } else {
+                                  // La validación de stock se hace en updateItemQuantity
+                                  const otherItemsQuantity = saleItems
+                                    .filter((it, i) => i !== index && it.product === item.product)
+                                    .reduce((sum, it) => sum + (it.quantity || 0), 0);
+                                  const availableStock = product.stock - otherItemsQuantity;
+                                  
+                                  if (value > availableStock) {
+                                    updateItemQuantity(index, availableStock);
+                                    setError(`Cantidad ajustada al stock disponible: ${availableStock}`);
+                                    setTimeout(() => setError(""), 3000);
+                                  }
+                                }
+                              }}
+                              className="w-20 px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white text-center font-semibold"
+                            />
+                          </div>
+                          <div className="text-right min-w-[80px]">
+                            <p className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                              ${(Number(product.price) * item.quantity).toFixed(2)}
+                            </p>
+                          </div>
                           <button
                             onClick={() => removeItem(index)}
                             className="w-10 h-10 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-all hover:scale-110 active:scale-95 flex items-center justify-center"
+                            title="Eliminar producto"
                           >
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

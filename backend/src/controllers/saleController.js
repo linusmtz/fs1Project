@@ -1,7 +1,8 @@
 import Sale from "../models/Sale.js";
 import Product from "../models/Product.js";
+import { logAuditEvent } from "../utils/auditLogger.js";
 
-export const createSale = async (req, res) => {
+export const createSale = async (req, res, next) => {
 	try {
 		const { items } = req.body;
 
@@ -10,6 +11,7 @@ export const createSale = async (req, res) => {
 
 		let total = 0;
 		const saleItems = [];
+		const productsData = []; // Para usar en auditoría
 
 		for (const item of items) {
 			const product = await Product.findById(item.product);
@@ -33,6 +35,12 @@ export const createSale = async (req, res) => {
 				quantity: item.quantity,
 				price: product.price
 			});
+			
+			// Guardar datos del producto para auditoría
+			productsData.push({
+				_id: product._id,
+				name: product.name
+			});
 		}
 
 		const sale = await Sale.create({
@@ -41,10 +49,26 @@ export const createSale = async (req, res) => {
 			total
 		});
 
+		// Registrar auditoría
+		const productNames = productsData.map(p => p.name).join(", ");
+		
+		await logAuditEvent({
+			action: "SALE_CREATED",
+			entityType: "sale",
+			entityId: sale._id.toString(),
+			entityName: `Venta #${sale._id.toString().slice(-6)}`,
+			performedBy: req.user.id,
+			details: `Venta registrada con ${saleItems.length} producto(s): ${productNames}`,
+			metadata: {
+				total: sale.total,
+				itemsCount: saleItems.length
+			}
+		});
+
 		res.status(201).json(sale);
 
 	} catch (error) {
-		res.status(500).json({ message: "Error creando venta", error: error.message });
+		next(error);
 	}
 };
 

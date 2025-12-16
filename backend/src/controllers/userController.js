@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import { logAuditEvent } from "../utils/auditLogger.js";
 
 export const getUsers = async (req, res, next) => {
 	try {
@@ -20,6 +21,20 @@ export const createUser = async (req, res, next) => {
 
 		const user = await User.create({ name, email, password, role });
 
+		// Registrar auditoría
+		await logAuditEvent({
+			action: "USER_CREATED",
+			entityType: "user",
+			entityId: user._id.toString(),
+			entityName: user.name,
+			performedBy: req.user.id,
+			details: `Usuario "${user.name}" creado con rol "${user.role}"`,
+			metadata: {
+				email: user.email,
+				role: user.role
+			}
+		});
+
 		// No devolver la contraseña
 		const userResponse = user.toObject();
 		delete userResponse.password;
@@ -39,15 +54,30 @@ export const updateUserRole = async (req, res, next) => {
 			return res.status(400).json({ message: "El rol debe ser 'admin' o 'vendedor'" });
 		}
 
+		const oldUser = await User.findById(id).select("role");
+		if (!oldUser) {
+			return res.status(404).json({ message: "Usuario no encontrado" });
+		}
+
 		const user = await User.findByIdAndUpdate(
 			id,
 			{ role },
 			{ new: true, runValidators: true }
 		).select("-password");
 
-		if (!user) {
-			return res.status(404).json({ message: "Usuario no encontrado" });
-		}
+		// Registrar auditoría
+		await logAuditEvent({
+			action: "USER_UPDATED",
+			entityType: "user",
+			entityId: user._id.toString(),
+			entityName: user.name,
+			performedBy: req.user.id,
+			details: `Rol de usuario "${user.name}" actualizado de "${oldUser.role}" a "${user.role}"`,
+			metadata: {
+				oldRole: oldUser.role,
+				newRole: user.role
+			}
+		});
 
 		res.json(user);
 	} catch (err) {
@@ -73,6 +103,19 @@ export const toggleUserStatus = async (req, res, next) => {
 		if (!user) {
 			return res.status(404).json({ message: "Usuario no encontrado" });
 		}
+
+		// Registrar auditoría
+		await logAuditEvent({
+			action: "USER_STATUS_CHANGED",
+			entityType: "user",
+			entityId: user._id.toString(),
+			entityName: user.name,
+			performedBy: req.user.id,
+			details: `Estado de usuario "${user.name}" ${active ? "activado" : "desactivado"}`,
+			metadata: {
+				active: user.active
+			}
+		});
 
 		res.json(user);
 	} catch (err) {

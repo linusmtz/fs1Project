@@ -1,5 +1,6 @@
 import Product from "../models/Product.js";
 import { uploadImage, deleteImage } from "../services/s3Storage.js";
+import { logAuditEvent } from "../utils/auditLogger.js";
 
 
 // ADMIN only
@@ -13,6 +14,22 @@ export const createProduct = async (req, res, next) => {
 		// porque el frontend la subirá primero
 		
 		const product = await Product.create(productData);
+		
+		// Registrar auditoría
+		await logAuditEvent({
+			action: "PRODUCT_CREATED",
+			entityType: "product",
+			entityId: product._id.toString(),
+			entityName: product.name,
+			performedBy: req.user.id,
+			details: `Producto "${product.name}" creado en la categoría "${product.category}"`,
+			metadata: {
+				price: product.price,
+				stock: product.stock,
+				category: product.category
+			}
+		});
+		
 		res.status(201).json(product);
 	} catch (error) {
 		next(error);
@@ -71,12 +88,31 @@ export const updateProduct = async (req, res, next) => {
 			}
 		}
 
+		const oldProduct = await Product.findById(req.params.id);
+		if (!oldProduct) return res.status(404).json({ message: "Producto no encontrado" });
+		
 		const product = await Product.findByIdAndUpdate(
 			req.params.id,
 			updateData,
 			{ new: true, runValidators: true }
 		);
-		if (!product) return res.status(404).json({ message: "Producto no encontrado" });
+		
+		// Registrar auditoría
+		await logAuditEvent({
+			action: "PRODUCT_UPDATED",
+			entityType: "product",
+			entityId: product._id.toString(),
+			entityName: product.name,
+			performedBy: req.user.id,
+			details: `Producto "${product.name}" actualizado`,
+			metadata: {
+				oldPrice: oldProduct.price,
+				newPrice: product.price,
+				oldStock: oldProduct.stock,
+				newStock: product.stock
+			}
+		});
+		
 		res.json(product);
 	} catch (error) {
 		next(error);
@@ -98,6 +134,21 @@ export const deleteProduct = async (req, res, next) => {
 				// Continuar aunque falle la eliminación
 			}
 		}
+		
+		// Registrar auditoría antes de eliminar
+		await logAuditEvent({
+			action: "PRODUCT_DELETED",
+			entityType: "product",
+			entityId: product._id.toString(),
+			entityName: product.name,
+			performedBy: req.user.id,
+			details: `Producto "${product.name}" eliminado`,
+			metadata: {
+				category: product.category,
+				price: product.price,
+				stock: product.stock
+			}
+		});
 		
 		await Product.findByIdAndDelete(req.params.id);
 		res.json({ message: "Producto eliminado exitosamente" });
