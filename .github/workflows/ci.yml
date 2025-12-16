@@ -39,7 +39,7 @@ jobs:
     name: Deploy to Server
     runs-on: self-hosted
     needs: [build-frontend]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
       - name: Checkout repository
