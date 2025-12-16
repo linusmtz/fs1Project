@@ -6,6 +6,8 @@ dotenv.config()
 const PORT = process.env.PORT || 3000;
 connectDB();
 
-app.listen(PORT, () => 
-	console.log(`Server running in port:${PORT}`)
+// Escuchar solo en localhost (127.0.0.1) - Nginx hará el proxy
+// NO usar 0.0.0.0 para no exponer Express directamente a Internet
+app.listen(PORT, '127.0.0.1', () => 
+	console.log(`Server running on localhost:${PORT}`)
 );

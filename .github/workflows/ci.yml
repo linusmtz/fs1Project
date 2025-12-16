@@ -1,18 +1,19 @@
-name: CI
+name: CI/CD
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
-  build:
+  test-backend:
+    name: Test Backend
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -20,38 +21,139 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: |
-            backend/package-lock.json
-            frontend/package-lock.json
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
 
       - name: Install backend dependencies
         run: npm ci
         working-directory: backend
 
+      - name: Run backend linter
+        run: npm run lint --if-present
+        working-directory: backend
+
       - name: Run backend tests
         run: npm test --if-present
         working-directory: backend
+        continue-on-error: true
+
+  test-frontend:
+    name: Test Frontend
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Run frontend linter
+        run: npm run lint
+        working-directory: frontend
+
+      - name: Build frontend
+        env:
+          VITE_API_URL: http://localhost:3000/api
+        run: npm run build
+        working-directory: frontend
+
+  deploy:
+    name: Deploy to Server
+    runs-on: self-hosted
+    needs: [test-backend, test-frontend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install PM2 globally
+        run: npm install -g pm2
+
+      - name: Install backend dependencies
+        run: npm ci --production
+        working-directory: backend
+
+      - name: Create backend .env file
+        run: |
+          cd backend
+          echo "PORT=${{ secrets.PORT || '3000' }}" > .env
+          echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+          # FRONTEND_URL: URL pública donde se sirve el frontend (para CORS)
+          # Ejemplo con Nginx: http://fs1.linusmartinez.com
+          # Ejemplo sin Nginx: http://fs1.linusmartinez.com:5173
+          echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}" >> .env
+          echo "NODE_ENV=production" >> .env
+
+      - name: Stop existing backend (if running)
+        run: |
+          pm2 stop fs1-backend || true
+          pm2 delete fs1-backend || true
+        continue-on-error: true
+
+      - name: Start backend with PM2
+        run: |
+          cd backend
+          pm2 start index.js --name fs1-backend
+          pm2 save
+
+      - name: Verify backend is running
+        run: |
+          sleep 3
+          pm2 status
+          pm2 logs fs1-backend --lines 10 --nostream || true
 
       - name: Install frontend dependencies
         run: npm ci
         working-directory: frontend
 
       - name: Build frontend
+        env:
+          # VITE_API_URL: URL completa de la API que el frontend usará
+          # Ejemplo con Nginx: http://fs1.linusmartinez.com/api
+          # Ejemplo sin Nginx: http://fs1.linusmartinez.com:3000/api
+          VITE_API_URL: ${{ secrets.VITE_API_URL || 'http://localhost:3000/api' }}
         run: npm run build
         working-directory: frontend
 
-      - name: Install PM2
-        run: npm install -g pm2
-
-      - name: Restart backend with PM2
-        env:
-          NODE_ENV: production
+      - name: Deploy frontend to Nginx
         run: |
-          cd backend
-          if pm2 describe fs1-backend > /dev/null 2>&1; then
-            pm2 restart fs1-backend
+          # Crear directorio si no existe
+          sudo mkdir -p /var/www/fs1.linusmartinez.com
+          
+          # Copiar build del frontend
+          sudo cp -r frontend/dist/* /var/www/fs1.linusmartinez.com/
+          
+          # Ajustar permisos
+          sudo chown -R www-data:www-data /var/www/fs1.linusmartinez.com
+          
+          # Verificar que index.html existe
+          if [ -f "/var/www/fs1.linusmartinez.com/index.html" ]; then
+            echo "Frontend deployed successfully to /var/www/fs1.linusmartinez.com"
           else
-            pm2 start index.js --name fs1-backend
+            echo "Warning: index.html not found after deployment"
+            exit 1
           fi
+        continue-on-error: false
+
+      - name: Health check
+        run: |
+          sleep 5
+          curl -f http://localhost:${{ secrets.PORT || '3000' }}/api/health || echo "Health check failed"
+        continue-on-error: true

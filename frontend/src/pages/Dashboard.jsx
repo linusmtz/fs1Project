@@ -898,7 +898,7 @@ export default function Dashboard() {
                               <div className="flex items-center gap-3 sm:flex-col sm:items-end">
                                 <div className="px-4 py-2 bg-gradient-to-r from-emerald-100 to-teal-100 rounded-xl border border-emerald-200">
                                   <p className="text-2xl font-bold bg-gradient-to-r from-emerald-700 to-teal-700 bg-clip-text text-transparent">
-                                    ${Number(sale.totalAmount).toFixed(2)}
+                                    ${Number(sale.total || 0).toFixed(2)}
                                   </p>
                                 </div>
                               </div>

@@ -26,6 +26,7 @@ export default function Users() {
   const [search, setSearch] = useState("")
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState(initialForm)
+  const [formErrors, setFormErrors] = useState({})
 
   const fetchUsers = async () => {
     if (!isAdmin) return
@@ -75,19 +76,64 @@ export default function Users() {
     }
   }
 
+  const validateForm = () => {
+    const errors = {}
+    
+    if (!form.name || form.name.trim().length < 2) {
+      errors.name = "El nombre debe tener al menos 2 caracteres"
+    }
+    
+    if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      errors.email = "El email no es válido"
+    }
+    
+    if (!form.password || form.password.length < 6) {
+      errors.password = "La contraseña debe tener al menos 6 caracteres"
+    }
+    
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
   const createUser = async (e) => {
     e.preventDefault()
+    
+    // Validación en el frontend
+    if (!validateForm()) {
+      setError("Por favor, corrige los errores en el formulario")
+      return
+    }
+    
     try {
       setError("")
       setSuccess("")
+      setFormErrors({})
       setCreating(true)
       await axiosClient.post("/users", form)
       setSuccess("Usuario creado correctamente")
       setForm(initialForm)
       fetchUsers()
     } catch (err) {
-      const msg = err.response?.data?.message || err.response?.data?.errors?.join(", ") || "No se pudo crear el usuario"
-      setError(msg)
+      let errorMessage = "No se pudo crear el usuario"
+      
+      if (err.response?.data) {
+        const data = err.response.data
+        
+        // Si hay un array de errores, unirlos
+        if (Array.isArray(data.errors)) {
+          errorMessage = data.errors.join(", ")
+        } 
+        // Si hay un mensaje directo
+        else if (data.message) {
+          errorMessage = data.message
+        }
+        // Si hay un error específico
+        else if (data.error) {
+          errorMessage = data.error
+        }
+      }
+      
+      setError(errorMessage)
     } finally {
       setCreating(false)
     }
@@ -120,15 +166,15 @@ export default function Users() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20">
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl shadow-sm border-b border-white/20">
+      <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl shadow-sm border-b border-gray-200/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link
               to="/"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-gray-700 hover:text-blue-600 hover:bg-blue-50/50 transition-all duration-200 group"
+              className="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-all duration-200 group"
             >
               <svg
-                className="w-5 h-5 transform group-hover:-translate-x-1 transition-transform duration-200"
+                className="w-5 h-5 group-hover:-translate-x-1 transition-transform"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -137,36 +183,23 @@ export default function Users() {
               </svg>
               <span className="font-semibold">Dashboard</span>
             </Link>
-            <div className="flex items-center gap-2">
-              <div className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-200/50">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-                  />
-                </svg>
-                <span className="text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Gestión de Usuarios
-                </span>
-              </div>
+            <div className="text-center">
+              <p className="text-xs uppercase tracking-[0.3rem] text-indigo-500 font-semibold">Usuarios</p>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+                Gestión de usuarios
+              </h1>
             </div>
-            <Link
-              to="/audit"
-              className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:text-indigo-600 hover:border-indigo-300 transition-colors duration-200"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a2 2 0 012-2h6" />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 7H7a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2v-3"
-                />
-              </svg>
-              Auditoría
-            </Link>
+            <div className="hidden sm:flex items-center gap-4 text-sm font-medium">
+              <Link to="/products" className="text-gray-600 hover:text-indigo-600 transition-colors duration-200">
+                Productos
+              </Link>
+              <Link to="/sales" className="text-gray-600 hover:text-indigo-600 transition-colors duration-200">
+                Ventas
+              </Link>
+              <Link to="/audit" className="text-gray-600 hover:text-indigo-600 transition-colors duration-200">
+                Auditoría
+              </Link>
+            </div>
           </div>
         </div>
       </nav>
@@ -192,8 +225,8 @@ export default function Users() {
           </div>
         </header>
 
-        <Alert variant="success" message={success} onClose={() => setSuccess("")} />
-        <Alert variant="error" message={error} onClose={() => setError("")} />
+        {success && <Alert variant="success" message={success} onClose={() => setSuccess("")} />}
+        {error && <Alert variant="error" message={error} onClose={() => setError("")} />}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <section className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-xl p-6 space-y-5 hover:shadow-2xl transition-shadow duration-300">
@@ -225,33 +258,57 @@ export default function Users() {
                 <input
                   type="text"
                   value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white hover:border-blue-300"
+                  onChange={(e) => {
+                    setForm({ ...form, name: e.target.value })
+                    if (formErrors.name) setFormErrors({ ...formErrors, name: "" })
+                  }}
+                  className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white hover:border-blue-300 ${
+                    formErrors.name ? "border-red-300 focus:ring-red-500" : "border-gray-300"
+                  }`}
                   placeholder="Juan Pérez"
                   required
                 />
+                {formErrors.name && (
+                  <p className="text-xs text-red-600 font-medium mt-1">{formErrors.name}</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <label className="block text-sm font-semibold text-gray-700">Email</label>
                 <input
                   type="email"
                   value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white hover:border-blue-300"
+                  onChange={(e) => {
+                    setForm({ ...form, email: e.target.value })
+                    if (formErrors.email) setFormErrors({ ...formErrors, email: "" })
+                  }}
+                  className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white hover:border-blue-300 ${
+                    formErrors.email ? "border-red-300 focus:ring-red-500" : "border-gray-300"
+                  }`}
                   placeholder="juan@ejemplo.com"
                   required
                 />
+                {formErrors.email && (
+                  <p className="text-xs text-red-600 font-medium mt-1">{formErrors.email}</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <label className="block text-sm font-semibold text-gray-700">Contraseña</label>
                 <input
                   type="password"
                   value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white hover:border-blue-300"
+                  onChange={(e) => {
+                    setForm({ ...form, password: e.target.value })
+                    if (formErrors.password) setFormErrors({ ...formErrors, password: "" })
+                  }}
+                  className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white hover:border-blue-300 ${
+                    formErrors.password ? "border-red-300 focus:ring-red-500" : "border-gray-300"
+                  }`}
                   placeholder="••••••••"
                   required
                 />
+                {formErrors.password && (
+                  <p className="text-xs text-red-600 font-medium mt-1">{formErrors.password}</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <label className="block text-sm font-semibold text-gray-700">Rol</label>

@@ -1,91 +1,88 @@
-"use client"
+import { useEffect, useState, useContext } from "react";
+import { Link } from "react-router-dom";
+import axiosClient from "../api/axiosClient";
+import { AuthContext } from "../context/AuthContext";
 
-import { useContext, useEffect, useState } from "react"
-import { Link } from "react-router-dom"
-import axiosClient from "../api/axiosClient"
-import { AuthContext } from "../context/AuthContext"
-import Alert from "../components/Alert"
-import StatCard from "../components/StatCard"
-
-const SALES_PER_PAGE = 5
+const SALES_PER_PAGE = 5;
 
 export default function Sales() {
-  const { auth } = useContext(AuthContext)
-  const isAdmin = auth.user?.role === "admin"
-  const [sales, setSales] = useState([])
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [loadingProducts, setLoadingProducts] = useState(true)
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
-  const [composerOpen, setComposerOpen] = useState(true)
-  const [saleItems, setSaleItems] = useState([])
-  const [selectedProduct, setSelectedProduct] = useState("")
-  const [quantity, setQuantity] = useState(1)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [expandedSaleId, setExpandedSaleId] = useState(null)
+  const { auth } = useContext(AuthContext);
+  const isAdmin = auth.user?.role === "admin";
+  
+  const [sales, setSales] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [saleItems, setSaleItems] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [expandedSaleId, setExpandedSaleId] = useState(null);
 
   const fetchSales = async () => {
     try {
-      setLoading(true)
-      setError("")
-      const res = await axiosClient.get("/sales")
-      setSales(res.data)
-      setCurrentPage(1)
+      setLoading(true);
+      setError("");
+      const res = await axiosClient.get("/sales");
+      setSales(res.data);
+      setCurrentPage(1);
     } catch (err) {
-      setError(err.response?.data?.message || "Error al cargar ventas")
+      setError(err.response?.data?.message || "Error al cargar ventas");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fetchProducts = async () => {
     try {
-      setLoadingProducts(true)
-      const res = await axiosClient.get("/products")
-      setProducts(res.data.filter((p) => p.stock > 0))
+      setLoadingProducts(true);
+      const res = await axiosClient.get("/products");
+      setProducts(res.data.filter((p) => p.stock > 0));
     } catch (err) {
-      setError(err.response?.data?.message || "Error al cargar productos")
+      setError(err.response?.data?.message || "Error al cargar productos");
     } finally {
-      setLoadingProducts(false)
+      setLoadingProducts(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchSales()
-    fetchProducts()
-  }, [])
+    fetchSales();
+    fetchProducts();
+  }, []);
 
   const addItemToSale = () => {
     if (!selectedProduct || quantity < 1) {
-      setError("Selecciona un producto y una cantidad válida")
-      return
+      setError("Selecciona un producto y una cantidad válida");
+      return;
     }
 
-    const product = products.find((p) => p._id === selectedProduct)
+    const product = products.find((p) => p._id === selectedProduct);
     if (!product) {
-      setError("Producto no encontrado")
-      return
+      setError("Producto no encontrado");
+      return;
     }
 
     if (product.stock < quantity) {
-      setError(`Stock insuficiente. Disponible: ${product.stock}`)
-      return
+      setError(`Stock insuficiente. Disponible: ${product.stock}`);
+      return;
     }
 
-    const existingItemIndex = saleItems.findIndex((item) => item.product === selectedProduct)
+    const existingItemIndex = saleItems.findIndex((item) => item.product === selectedProduct);
 
     if (existingItemIndex >= 0) {
-      const updatedItems = [...saleItems]
-      const newQuantity = updatedItems[existingItemIndex].quantity + quantity
+      const updatedItems = [...saleItems];
+      const newQuantity = updatedItems[existingItemIndex].quantity + quantity;
 
       if (product.stock < newQuantity) {
-        setError(`Stock insuficiente. Disponible: ${product.stock}`)
-        return
+        setError(`Stock insuficiente. Disponible: ${product.stock}`);
+        return;
       }
 
-      updatedItems[existingItemIndex].quantity = newQuantity
-      setSaleItems(updatedItems)
+      updatedItems[existingItemIndex].quantity = newQuantity;
+      setSaleItems(updatedItems);
     } else {
       setSaleItems([
         ...saleItems,
@@ -93,102 +90,81 @@ export default function Sales() {
           product: selectedProduct,
           quantity,
         },
-      ])
+      ]);
     }
 
-    setSelectedProduct("")
-    setQuantity(1)
-    setError("")
-  }
+    setSelectedProduct("");
+    setQuantity(1);
+    setError("");
+  };
 
   const removeItem = (index) => {
-    setSaleItems(saleItems.filter((_, i) => i !== index))
-  }
+    setSaleItems(saleItems.filter((_, i) => i !== index));
+  };
 
   const createSale = async () => {
     if (saleItems.length === 0) {
-      setError("Agrega al menos un producto a la venta")
-      return
+      setError("Agrega al menos un producto a la venta");
+      return;
     }
 
     try {
-      setError("")
-      setSuccess("")
-      await axiosClient.post("/sales", { items: saleItems })
-      setSuccess("Venta creada exitosamente")
-      setSaleItems([])
-      fetchSales()
-      fetchProducts()
+      setError("");
+      setSuccess("");
+      await axiosClient.post("/sales", { items: saleItems });
+      setSuccess("¡Venta creada exitosamente! 🎉");
+      setSaleItems([]);
+      setShowForm(false);
+      fetchSales();
+      fetchProducts();
     } catch (err) {
       const errorMsg = err.response?.data?.errors
         ? err.response.data.errors.join(", ")
-        : err.response?.data?.message || "Error al crear venta"
-      setError(errorMsg)
+        : err.response?.data?.message || "Error al crear venta";
+      setError(errorMsg);
     }
-  }
+  };
 
   const getTotal = () => {
     return saleItems.reduce((total, item) => {
-      const product = products.find((p) => p._id === item.product)
-      if (!product) return total
-      return total + product.price * item.quantity
-    }, 0)
-  }
+      const product = products.find((p) => p._id === item.product);
+      if (!product) return total;
+      return total + product.price * item.quantity;
+    }, 0);
+  };
 
-  const totalPages = Math.max(1, Math.ceil(sales.length / SALES_PER_PAGE))
-  const paginatedSales = sales.slice((currentPage - 1) * SALES_PER_PAGE, currentPage * SALES_PER_PAGE)
+  const totalPages = Math.max(1, Math.ceil(sales.length / SALES_PER_PAGE));
+  const paginatedSales = sales.slice(
+    (currentPage - 1) * SALES_PER_PAGE,
+    currentPage * SALES_PER_PAGE
+  );
 
-  const totalRevenue = sales.reduce((acc, sale) => acc + Number(sale.total || 0), 0)
+  const totalRevenue = sales.reduce((acc, sale) => acc + Number(sale.total || 0), 0);
   const bestSeller = (() => {
-    const map = {}
+    const map = {};
     sales.forEach((sale) => {
       sale.items?.forEach((item) => {
-        const key = item.product?._id || item.product
-        if (!key) return
+        const key = item.product?._id || item.product;
+        if (!key) return;
         map[key] = {
           name: item.product?.name || "Producto",
           total: (map[key]?.total || 0) + item.quantity,
-        }
-      })
-    })
-    const sorted = Object.values(map).sort((a, b) => b.total - a.total)
-    return sorted[0]
-  })()
-
-  const kpiCards = [
-    {
-      label: "Ingresos totales",
-      value: `$${totalRevenue.toFixed(2)}`,
-      helper: "Acumulado histórico",
-    },
-    {
-      label: "Ventas registradas",
-      value: sales.length,
-      helper: "Operaciones totales",
-    },
-    {
-      label: "Producto destacado",
-      value: bestSeller ? bestSeller.name : "Sin datos",
-      helper: bestSeller ? `${bestSeller.total} unidades` : "Aún no hay ventas",
-    },
-  ]
-  const hasSales = sales.length > 0
-
-  const scrollToComposer = () => {
-    setComposerOpen(true)
-    requestAnimationFrame(() => {
-      document.getElementById("sale-composer")?.scrollIntoView({ behavior: "smooth", block: "start" })
-    })
-  }
+        };
+      });
+    });
+    const sorted = Object.values(map).sort((a, b) => b.total - a.total);
+    return sorted[0];
+  })();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md shadow-lg border-b border-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50">
+      {/* Navbar */}
+      <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl shadow-sm border-b border-gray-200/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link
               to="/"
-              className="flex items-center space-x-2 text-gray-700 hover:text-indigo-600 transition-all duration-300 group"
+              className="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-all duration-200 group"
             >
               <svg
                 className="w-5 h-5 group-hover:-translate-x-1 transition-transform"
@@ -198,24 +174,27 @@ export default function Sales() {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              <span className="font-semibold">Volver al Dashboard</span>
+              <span className="font-semibold">Dashboard</span>
             </Link>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              Ventas
-            </h1>
-            <div className="hidden sm:flex items-center space-x-4 text-sm font-medium">
-              <Link to="/products" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
+            <div className="text-center">
+              <p className="text-xs uppercase tracking-[0.3rem] text-indigo-500 font-semibold">Ventas</p>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+                Registro de ventas
+              </h1>
+            </div>
+            <div className="hidden sm:flex items-center gap-4 text-sm font-medium">
+              <Link to="/products" className="text-gray-600 hover:text-indigo-600 transition-colors duration-200">
                 Productos
               </Link>
               {isAdmin && (
-                <Link to="/users" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
-                  Usuarios
-                </Link>
-              )}
-              {isAdmin && (
-                <Link to="/audit" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
-                  Auditoría
-                </Link>
+                <>
+                  <Link to="/users" className="text-gray-600 hover:text-indigo-600 transition-colors duration-200">
+                    Usuarios
+                  </Link>
+                  <Link to="/audit" className="text-gray-600 hover:text-indigo-600 transition-colors duration-200">
+                    Auditoría
+                  </Link>
+                </>
               )}
             </div>
           </div>
@@ -223,408 +202,433 @@ export default function Sales() {
       </nav>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        {/* Header */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 mb-1">Resumen de ventas</p>
-            <h2 className="text-4xl font-bold text-gray-900 mb-2">Panel de ventas</h2>
-            <p className="text-gray-600 text-lg">
-              Controla tus ingresos y registra nuevas ventas sin perder de vista el historial.
+            <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2">
+              Panel de Ventas
+            </p>
+            <h2 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              Registro de Ventas
+            </h2>
+            <p className="text-gray-600 mt-2 text-lg">
+              Visualiza el historial y registra nuevas ventas
             </p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={scrollToComposer}
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          <button
+            onClick={() => {
+              setShowForm(!showForm);
+              setError("");
+            }}
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold px-8 py-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transform flex items-center gap-2"
+          >
+            {showForm ? (
+              <>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <span>Ocultar Formulario</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Nueva Venta</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 shadow-xl text-white transform hover:scale-105 transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-emerald-100 text-sm font-medium mb-1">Ingresos Totales</p>
+                <p className="text-4xl font-bold">${totalRevenue.toFixed(2)}</p>
+              </div>
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl p-6 shadow-xl text-white transform hover:scale-105 transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-indigo-100 text-sm font-medium mb-1">Ventas Registradas</p>
+                <p className="text-4xl font-bold">{sales.length}</p>
+              </div>
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl p-6 shadow-xl text-white transform hover:scale-105 transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-purple-100 text-sm font-medium mb-1">Producto Estrella</p>
+                <p className="text-lg font-bold">
+                  {bestSeller ? `${bestSeller.name}` : "Sin datos"}
+                </p>
+                {bestSeller && (
+                  <p className="text-sm text-purple-100 mt-1">{bestSeller.total} unidades vendidas</p>
+                )}
+              </div>
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Alerts */}
+        {success && (
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 text-green-800 px-6 py-4 rounded-xl flex items-center justify-between shadow-lg animate-slide-in">
+            <div className="flex items-center gap-3">
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
-              <span>Registrar venta</span>
-            </button>
-            <button
-              onClick={() => setComposerOpen((prev) => !prev)}
-              className="inline-flex items-center gap-2 bg-white border-2 border-indigo-200 text-gray-700 font-semibold px-6 py-3 rounded-xl hover:border-indigo-400 hover:shadow-md transition-all duration-300"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                />
-              </svg>
-              {composerOpen ? "Ocultar panel" : "Mostrar panel"}
+              <span className="font-semibold text-lg">{success}</span>
+            </div>
+            <button onClick={() => setSuccess("")} className="text-green-700 hover:text-green-900 hover:scale-110 transition-transform">
+              ✕
             </button>
           </div>
-        </header>
+        )}
 
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {kpiCards.map((card) => (
-            <StatCard key={card.label} label={card.label} value={card.value} helper={card.helper} />
-          ))}
-        </section>
+        {error && (
+          <div className="bg-gradient-to-r from-red-50 to-rose-50 border-l-4 border-red-500 text-red-800 px-6 py-4 rounded-xl flex items-center justify-between shadow-lg animate-slide-in">
+            <div className="flex items-center gap-3">
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <span className="font-semibold">{error}</span>
+            </div>
+            <button onClick={() => setError("")} className="text-red-700 hover:text-red-900 hover:scale-110 transition-transform">
+              ✕
+            </button>
+          </div>
+        )}
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          <section className="xl:col-span-2 space-y-6">
-            <Alert variant="success" message={success} onClose={() => setSuccess("")} />
-            <Alert variant="error" message={error} onClose={() => setError("")} />
-
-            {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="relative">
-                  <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200"></div>
-                  <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-indigo-600 absolute top-0 left-0"></div>
-                </div>
-              </div>
-            ) : !hasSales ? (
-              <div className="bg-white rounded-2xl shadow-lg p-12 border-2 border-dashed border-gray-300 text-center">
-                <div className="inline-flex p-4 bg-gray-100 rounded-full mb-4">
-                  <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Aún no registras ventas</h3>
-                <p className="text-gray-600 text-lg">
-                  Usa el panel lateral para crear tu primera venta y comenzar a ver el historial aquí.
+        {/* Formulario de Nueva Venta */}
+        {showForm && (
+          <section className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl p-8 border border-gray-200/50 space-y-6 animate-slide-in">
+            <div className="flex items-center justify-between flex-wrap gap-3 pb-4 border-b border-gray-200">
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">
+                  Nueva Venta
                 </p>
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  Arma el Ticket
+                </h3>
               </div>
-            ) : (
-              <section className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-5 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-indigo-100">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 mb-1">Historial</p>
-                    <h3 className="text-2xl font-bold text-gray-900">Últimas ventas</h3>
-                  </div>
-                  <div className="flex items-center space-x-3 text-sm">
-                    <span className="text-gray-600">Página</span>
-                    <span className="px-3 py-1 bg-white rounded-lg font-bold text-indigo-600 shadow-sm">
-                      {currentPage} / {totalPages}
-                    </span>
-                  </div>
-                </div>
+              <div className="flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-lg">
+                <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                <span className="text-sm font-semibold text-indigo-700">
+                  {products.length} productos disponibles
+                </span>
+              </div>
+            </div>
 
-                <div className="divide-y divide-gray-100">
-                  {paginatedSales.map((sale) => {
-                    const isExpanded = expandedSaleId === sale._id
-                    return (
-                      <article key={sale._id}>
-                        <button
-                          onClick={() => setExpandedSaleId((prev) => (prev === sale._id ? null : sale._id))}
-                          className="w-full flex items-center justify-between px-6 py-5 text-left focus:outline-none hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-300 group"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className="p-3 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                              <svg
-                                className="w-6 h-6 text-indigo-600"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                />
-                              </svg>
-                            </div>
-                            <div>
-                              <p className="text-xs font-semibold text-indigo-600 mb-1">
-                                Venta #{sale._id?.slice(-6) || "N/A"}
-                              </p>
-                              <p className="text-lg font-bold text-gray-900">{sale.user?.name || "Usuario"}</p>
-                              <p className="text-sm text-gray-500">
-                                {new Date(sale.createdAt).toLocaleDateString("es-ES", {
-                                  year: "numeric",
-                                  month: "long",
-                                  day: "numeric",
-                                })}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-6">
-                            <div className="text-right">
-                              <p className="text-xs text-gray-500 mb-1">Total</p>
-                              <p className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                                ${Number(sale.total).toFixed(2)}
-                              </p>
-                            </div>
-                            <span
-                              className={`transform transition-all duration-300 ${
-                                isExpanded ? "rotate-180 text-indigo-600" : "text-gray-400 group-hover:text-indigo-400"
-                              }`}
-                            >
-                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </span>
-                          </div>
-                        </button>
-
-                        {isExpanded && (
-                          <div className="px-6 pb-6 pt-3 bg-gradient-to-br from-slate-50 to-indigo-50 border-t border-indigo-100">
-                            <div className="space-y-3">
-                              {sale.items?.map((item) => (
-                                <div
-                                  key={item._id}
-                                  className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg">
-                                      <svg
-                                        className="w-5 h-5 text-blue-600"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                                        />
-                                      </svg>
-                                    </div>
-                                    <div>
-                                      <p className="font-bold text-gray-900">{item.product?.name || "Producto"}</p>
-                                      <p className="text-sm text-gray-500">
-                                        Cantidad: <span className="font-semibold text-indigo-600">{item.quantity}</span>
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="text-right">
-                                    <p className="text-sm text-gray-500">${Number(item.price).toFixed(2)} c/u</p>
-                                    <p className="text-lg font-bold text-indigo-600">
-                                      ${(Number(item.price) * item.quantity).toFixed(2)}
-                                    </p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </article>
-                    )
-                  })}
-                </div>
-
-                <div className="flex items-center justify-between bg-gray-50 border-t border-gray-200 px-6 py-4 text-sm">
-                  <span className="text-gray-600 font-medium">
-                    Mostrando{" "}
-                    <span className="text-indigo-600 font-bold">{(currentPage - 1) * SALES_PER_PAGE + 1}</span> -{" "}
-                    <span className="text-indigo-600 font-bold">
-                      {Math.min(currentPage * SALES_PER_PAGE, sales.length)}
-                    </span>{" "}
-                    de <span className="text-indigo-600 font-bold">{sales.length}</span>
-                  </span>
-                  <div className="flex items-center space-x-3">
-                    <button
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                      className={`px-5 py-2.5 rounded-lg font-semibold transition-all duration-300 ${
-                        currentPage === 1
-                          ? "text-gray-400 bg-gray-200 cursor-not-allowed"
-                          : "text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:shadow-lg hover:scale-105"
-                      }`}
-                    >
-                      Anterior
-                    </button>
-                    <button
-                      disabled={currentPage === totalPages}
-                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                      className={`px-5 py-2.5 rounded-lg font-semibold transition-all duration-300 ${
-                        currentPage === totalPages
-                          ? "text-gray-400 bg-gray-200 cursor-not-allowed"
-                          : "text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:shadow-lg hover:scale-105"
-                      }`}
-                    >
-                      Siguiente
-                    </button>
-                  </div>
-                </div>
-              </section>
-            )}
-          </section>
-
-          <aside className="space-y-6">
-            <div
-              id="sale-composer"
-              className="bg-white rounded-2xl border-2 border-indigo-200 shadow-xl p-6 space-y-5 sticky top-24"
-            >
-              <div className="flex items-center justify-between pb-4 border-b-2 border-gray-100">
-                <div>
-                  <p className="text-xs uppercase tracking-wider font-bold text-indigo-600 mb-1">Nuevo ticket</p>
-                  <h3 className="text-2xl font-bold text-gray-900">Crear venta</h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    <span className="font-semibold text-indigo-600">{products.length}</span> productos disponibles
-                  </p>
-                </div>
-                <button
-                  onClick={() => setComposerOpen((prev) => !prev)}
-                  className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors duration-300"
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Producto
+                </label>
+                <select
+                  value={selectedProduct}
+                  onChange={(e) => setSelectedProduct(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50 focus:bg-white"
+                  disabled={loadingProducts}
                 >
-                  <svg
-                    className={`w-6 h-6 transition-transform duration-300 ${composerOpen ? "rotate-180" : ""}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <option value="">Selecciona un producto</option>
+                  {products.map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.name} • Stock: {p.stock} • ${Number(p.price).toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Cantidad
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={quantity}
+                  onChange={(e) => setQuantity(parseInt(e.target.value, 10) || 1)}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50 focus:bg-white"
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={addItemToSale}
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transform flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
+                  <span>Agregar</span>
                 </button>
               </div>
+            </div>
 
-              {composerOpen && (
-                <div className="space-y-6">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 text-white rounded-full font-bold text-sm">
-                        1
-                      </div>
-                      <p className="text-sm font-bold text-gray-700">Seleccionar producto</p>
-                    </div>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Producto</label>
-                        <select
-                          value={selectedProduct}
-                          onChange={(e) => setSelectedProduct(e.target.value)}
-                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-300"
-                          disabled={loadingProducts}
-                        >
-                          <option value="">Selecciona un producto</option>
-                          {products.map((p) => (
-                            <option key={p._id} value={p._id}>
-                              {p.name} · Stock {p.stock} · ${Number(p.price).toFixed(2)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad</label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={quantity}
-                            onChange={(e) => setQuantity(Number.parseInt(e.target.value, 10) || 1)}
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-300"
-                          />
+            {saleItems.length > 0 && (
+              <div className="space-y-4 pt-4 border-t border-gray-200">
+                <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
+                  Productos en la Venta
+                </h4>
+                <div className="space-y-3">
+                  {saleItems.map((item, index) => {
+                    const product = products.find((p) => p._id === item.product);
+                    if (!product) return null;
+                    return (
+                      <div
+                        key={`${item.product}-${index}`}
+                        className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border-2 border-gray-200 hover:border-indigo-300 transition-all group"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg flex items-center justify-center">
+                            <svg className="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
+                              {product.name}
+                            </p>
+                            <p className="text-sm text-gray-600 font-medium">
+                              ${Number(product.price).toFixed(2)} × {item.quantity}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex items-end">
+                        <div className="flex items-center gap-4">
+                          <p className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                            ${(Number(product.price) * item.quantity).toFixed(2)}
+                          </p>
                           <button
-                            onClick={addItemToSale}
-                            className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105"
+                            onClick={() => removeItem(index)}
+                            className="w-10 h-10 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-all hover:scale-110 active:scale-95 flex items-center justify-center"
                           >
-                            Agregar
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
                           </button>
                         </div>
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 pt-3 border-t-2 border-gray-100">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 text-white rounded-full font-bold text-sm">
-                        2
-                      </div>
-                      <p className="text-sm font-bold text-gray-700">Confirmar items</p>
-                    </div>
-                    {saleItems.length === 0 ? (
-                      <div className="text-center py-8 px-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-                        <svg
-                          className="w-12 h-12 text-gray-400 mx-auto mb-2"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                          />
-                        </svg>
-                        <p className="text-sm text-gray-600 font-medium">No hay productos en la venta</p>
-                        <p className="text-xs text-gray-500 mt-1">Agrega al menos uno para continuar</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                        {saleItems.map((item, index) => {
-                          const product = products.find((p) => p._id === item.product)
-                          if (!product) return null
-                          return (
-                            <div
-                              key={index}
-                              className="flex items-center justify-between p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 group hover:shadow-md transition-all duration-300"
-                            >
-                              <div className="flex-1">
-                                <p className="font-bold text-gray-900 text-sm">{product.name}</p>
-                                <p className="text-xs text-gray-600">
-                                  {item.quantity} × ${Number(product.price).toFixed(2)}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <p className="font-bold text-indigo-600">
-                                  ${(item.quantity * Number(product.price)).toFixed(2)}
-                                </p>
-                                <button
-                                  onClick={() => removeItem(index)}
-                                  className="p-1.5 text-red-600 hover:bg-red-100 rounded-lg transition-colors duration-300"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                    />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-3 pt-3 border-t-2 border-gray-100">
-                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border-2 border-emerald-200">
-                      <span className="text-sm font-bold text-gray-700">Total de la venta</span>
-                      <span className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                        ${getTotal().toFixed(2)}
-                      </span>
-                    </div>
-                    <button
-                      onClick={createSale}
-                      disabled={saleItems.length === 0}
-                      className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all duration-300 ${
-                        saleItems.length === 0
-                          ? "bg-gray-300 cursor-not-allowed"
-                          : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl hover:scale-105"
-                      }`}
-                    >
-                      {saleItems.length === 0 ? "Agrega productos" : "Confirmar venta"}
-                    </button>
-                  </div>
+                    );
+                  })}
                 </div>
-              )}
+                <div className="flex items-center justify-between border-t-2 border-dashed border-gray-300 pt-4 mt-4">
+                  <span className="text-xl font-bold text-gray-900">Total:</span>
+                  <span className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    ${getTotal().toFixed(2)}
+                  </span>
+                </div>
+                <button
+                  onClick={createSale}
+                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transform flex items-center justify-center gap-3"
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Confirmar Venta</span>
+                </button>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Historial de Ventas */}
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="relative">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 border-t-indigo-600"></div>
+              <div className="animate-ping absolute inset-0 h-16 w-16 border-4 border-indigo-400 rounded-full opacity-20"></div>
             </div>
-          </aside>
-        </div>
+          </div>
+        ) : sales.length === 0 ? (
+          <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl p-16 border border-gray-200/50 text-center">
+            <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
+              <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+            </svg>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">No hay ventas aún</h3>
+            <p className="text-gray-600">Registra la primera venta para empezar</p>
+          </div>
+        ) : (
+          <section className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 overflow-hidden">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-indigo-100 text-xs uppercase tracking-wider font-semibold mb-1">
+                    Historial
+                  </p>
+                  <h3 className="text-2xl font-bold text-white">Últimas Ventas</h3>
+                </div>
+                <div className="flex items-center space-x-2 text-sm text-indigo-100 bg-white/20 px-4 py-2 rounded-lg backdrop-blur">
+                  <span>Página</span>
+                  <span className="font-bold text-white">
+                    {currentPage} / {totalPages}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="divide-y divide-gray-100">
+              {paginatedSales.map((sale, idx) => {
+                const isExpanded = expandedSaleId === sale._id;
+                return (
+                  <article key={sale._id} className="group">
+                    <button
+                      onClick={() =>
+                        setExpandedSaleId((prev) => (prev === sale._id ? null : sale._id))
+                      }
+                      className="w-full flex items-center justify-between px-6 py-5 text-left focus:outline-none hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-300"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                          </svg>
+                        </div>
+                    <div>
+                          <p className="text-xs text-gray-500 font-semibold mb-1">
+                            Venta #{sale._id?.slice(-6) || "N/A"}
+                          </p>
+                          <p className="text-lg font-bold text-gray-900">
+                            {sale.user?.name || sale.user?.email || "Usuario"}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {new Date(sale.createdAt).toLocaleDateString("es-ES", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                      </p>
+                    </div>
+                      </div>
+                      <div className="flex items-center gap-6">
+                    <div className="text-right">
+                          <p className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                            ${Number(sale.total || 0).toFixed(2)}
+                      </p>
+                    </div>
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
+                          isExpanded ? "bg-indigo-600 text-white rotate-180" : "bg-gray-100 text-gray-600"
+                        }`}>
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                    </div>
+                  </div>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="px-6 pb-6 pt-2 bg-gradient-to-br from-gray-50 to-white border-t border-gray-200 animate-slide-in">
+                        <div className="space-y-3 pt-4">
+                      {sale.items?.map((item) => (
+                        <div
+                          key={item._id}
+                              className="flex items-center justify-between p-4 bg-white rounded-xl shadow-md border border-gray-200 hover:shadow-lg transition-all"
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg flex items-center justify-center">
+                                  <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                  </svg>
+                                </div>
+                                <div>
+                                  <p className="font-bold text-gray-900">
+                                    {item.product?.name || "Producto"}
+                                  </p>
+                                  <p className="text-sm text-gray-600">
+                                    Cantidad: {item.quantity} × ${Number(item.price).toFixed(2)}
+                                  </p>
+                                </div>
+                          </div>
+                          <div className="text-right">
+                                <p className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                                  ${(Number(item.price) * item.quantity).toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t border-gray-200 px-6 py-4 bg-gray-50">
+                <span className="text-sm text-gray-600 font-medium">
+                  Mostrando {(currentPage - 1) * SALES_PER_PAGE + 1} -{" "}
+                  {Math.min(currentPage * SALES_PER_PAGE, sales.length)} de {sales.length}
+                </span>
+                <div className="flex items-center space-x-2">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    className={`px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 ${
+                      currentPage === 1
+                        ? "text-gray-400 bg-gray-100 cursor-not-allowed"
+                        : "text-gray-700 bg-white border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 hover:shadow-md"
+                    }`}
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    className={`px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 ${
+                      currentPage === totalPages
+                        ? "text-gray-400 bg-gray-100 cursor-not-allowed"
+                        : "text-gray-700 bg-white border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 hover:shadow-md"
+                    }`}
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
       </main>
+
+      <style>{`
+        @keyframes slide-in {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-slide-in {
+          animation: slide-in 0.3s ease-out;
+        }
+      `}</style>
     </div>
-  )
+  );
 }

@@ -39,38 +39,6 @@ export const validateUser = [
 	validate,
 ];
 
-export const validateUserUpdate = [
-	body("name")
-		.optional()
-		.trim()
-		.isLength({ min: 2, max: 100 })
-		.withMessage("El nombre debe tener entre 2 y 100 caracteres"),
-	body("email")
-		.optional()
-		.trim()
-		.isEmail()
-		.withMessage("El email no es válido")
-		.normalizeEmail(),
-	body("password")
-		.optional()
-		.isLength({ min: 6 })
-		.withMessage("La contraseña debe tener al menos 6 caracteres"),
-	body("role")
-		.optional()
-		.isIn(["admin", "vendedor"])
-		.withMessage("El rol debe ser 'admin' o 'vendedor'"),
-	validate,
-];
-
-export const validateUserStatus = [
-	body("active")
-		.notEmpty()
-		.withMessage("El estado es requerido")
-		.isBoolean()
-		.withMessage("El estado debe ser verdadero o falso"),
-	validate,
-];
-
 
 export const validateLogin = [
 	body("email")
@@ -123,14 +91,6 @@ export const validateProduct = [
 	validate,
 ];
 
-export const validateRestock = [
-	body("quantity")
-		.notEmpty()
-		.withMessage("La cantidad es requerida")
-		.isInt({ min: 1 })
-		.withMessage("La cantidad debe ser un número entero positivo"),
-	validate,
-];
 
 export const validateSale = [
 	body("items")
@@ -158,3 +118,4 @@ export const validateMongoId = [
 		.withMessage("El ID no es válido"),
 	validate,
 ];
+

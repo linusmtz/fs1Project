@@ -3,8 +3,8 @@ import cors from "cors";
 import helmet from "helmet";
 import mongoSanitize from "express-mongo-sanitize";
 import rateLimit from "express-rate-limit";
-import userRoutes from "./routes/userRoutes.js";
-import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js" 
+import authRoutes from "./routes/authRoutes.js"
 import productRoutes from "./routes/productRoutes.js";
 import saleRoutes from "./routes/saleRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";

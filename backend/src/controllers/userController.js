@@ -1,114 +1,82 @@
 import User from "../models/User.js";
-import { logAuditEvent } from "../utils/auditLogger.js";
 
-const sanitizeUser = (user) => {
-	const obj = user.toObject();
-	delete obj.password;
-	return obj;
+export const getUsers = async (req, res, next) => {
+	try {
+		const users = await User.find({}).select("-password").sort({ createdAt: -1 });
+		res.json(users);
+	} catch (err) {
+		next(err);
+	}
 };
 
-export const createUser = async (req, res) => {
+export const createUser = async (req, res, next) => {
 	try {
 		const { name, email, password, role } = req.body;
 
 		const exists = await User.findOne({ email });
-		if (exists) return res.status(400).json({ message: "Email ya existe" });
+		if (exists) {
+			return res.status(400).json({ message: "Email ya existe" });
+		}
 
 		const user = await User.create({ name, email, password, role });
 
-		await logAuditEvent({
-			action: "USER_CREATED",
-			entityType: "user",
-			entityId: user._id.toString(),
-			entityName: user.name,
-			performedBy: req.user?.id,
-			details: `Se creó la cuenta ${user.email}`,
-			metadata: { role: user.role }
-		});
+		// No devolver la contraseña
+		const userResponse = user.toObject();
+		delete userResponse.password;
 
-		res.status(201).json(sanitizeUser(user));
+		res.status(201).json(userResponse);
 	} catch (err) {
-		return res.status(400).json({
-			message: "Error creando usuario",
-			error: err.message
-		});
+		next(err);
 	}
 };
 
-export const getUsers = async (_req, res, next) => {
+export const updateUserRole = async (req, res, next) => {
 	try {
-		const users = await User.find().sort({ createdAt: -1 }).select("-password");
-		res.json(users);
-	} catch (error) {
-		next(error);
-	}
-};
+		const { id } = req.params;
+		const { role } = req.body;
 
-export const updateUser = async (req, res, next) => {
-	try {
-		const { name, email, role, password } = req.body;
-		const user = await User.findById(req.params.id);
-		if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
-
-		if (email && email !== user.email) {
-			const exists = await User.findOne({ email });
-			if (exists && exists._id.toString() !== user._id.toString()) {
-				return res.status(400).json({ message: "El email ya está en uso" });
-			}
-			user.email = email;
+		if (!["admin", "vendedor"].includes(role)) {
+			return res.status(400).json({ message: "El rol debe ser 'admin' o 'vendedor'" });
 		}
 
-		if (name !== undefined) user.name = name;
-		if (role !== undefined) user.role = role;
-		if (password) user.password = password;
+		const user = await User.findByIdAndUpdate(
+			id,
+			{ role },
+			{ new: true, runValidators: true }
+		).select("-password");
 
-		await user.save();
+		if (!user) {
+			return res.status(404).json({ message: "Usuario no encontrado" });
+		}
 
-		await logAuditEvent({
-			action: "USER_UPDATED",
-			entityType: "user",
-			entityId: user._id.toString(),
-			entityName: user.name,
-			performedBy: req.user?.id,
-			details: "Se actualizó información del usuario",
-			metadata: {
-				updatedFields: Object.keys(req.body || {})
-			}
-		});
-
-		res.json({
-			message: "Usuario actualizado",
-			user: sanitizeUser(user)
-		});
-	} catch (error) {
-		next(error);
+		res.json(user);
+	} catch (err) {
+		next(err);
 	}
 };
 
 export const toggleUserStatus = async (req, res, next) => {
 	try {
+		const { id } = req.params;
 		const { active } = req.body;
-		const user = await User.findById(req.params.id);
-		if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
 
-		user.active = active;
-		await user.save({ validateModifiedOnly: true });
+		if (typeof active !== "boolean") {
+			return res.status(400).json({ message: "El campo 'active' debe ser un booleano" });
+		}
 
-		await logAuditEvent({
-			action: "USER_STATUS_CHANGED",
-			entityType: "user",
-			entityId: user._id.toString(),
-			entityName: user.name,
-			performedBy: req.user?.id,
-			details: `El usuario fue ${active ? "activado" : "desactivado"}`,
-			metadata: { active }
-		});
+		const user = await User.findByIdAndUpdate(
+			id,
+			{ active },
+			{ new: true, runValidators: true }
+		).select("-password");
 
-		res.json({
-			message: `Usuario ${active ? "activado" : "desactivado"}`,
-			user: sanitizeUser(user)
-		});
-	} catch (error) {
-		next(error);
+		if (!user) {
+			return res.status(404).json({ message: "Usuario no encontrado" });
+		}
+
+		res.json(user);
+	} catch (err) {
+		next(err);
 	}
 };
+

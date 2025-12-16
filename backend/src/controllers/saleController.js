@@ -1,6 +1,5 @@
 import Sale from "../models/Sale.js";
 import Product from "../models/Product.js";
-import { logAuditEvent } from "../utils/auditLogger.js";
 
 export const createSale = async (req, res) => {
 	try {
@@ -42,18 +41,6 @@ export const createSale = async (req, res) => {
 			total
 		});
 
-		await logAuditEvent({
-			action: "SALE_CREATED",
-			entityType: "sale",
-			entityId: sale._id.toString(),
-			performedBy: req.user?.id,
-			details: `Se registró una venta por $${total.toFixed(2)}`,
-			metadata: {
-				total,
-				items: saleItems.length
-			}
-		});
-
 		res.status(201).json(sale);
 
 	} catch (error) {
@@ -75,46 +62,3 @@ export const getSales = async (req, res, next) => {
 	}
 };
 
-export const exportSales = async (req, res, next) => {
-	try {
-		const sales = await Sale.find()
-			.sort({ createdAt: -1 })
-			.populate("user", "name email")
-			.populate("items.product", "name category price");
-
-		const headers = ["Venta", "Fecha", "Usuario", "Email", "Total", "Productos"];
-		const escapeValue = (value) => {
-			if (value === null || value === undefined) return "";
-			const str = value.toString().replace(/"/g, '""');
-			return `"${str}"`;
-		};
-
-		const rows = sales.map((sale) => {
-			const itemsText = sale.items
-				.map((item) => {
-					const productName = item.product?.name || "Producto";
-					return `${productName} (${item.quantity})`;
-				})
-				.join(" | ");
-			return [
-				sale._id.toString(),
-				new Date(sale.createdAt).toISOString(),
-				sale.user?.name || "Usuario",
-				sale.user?.email || "",
-				sale.total.toFixed(2),
-				itemsText
-			]
-				.map(escapeValue)
-				.join(",");
-		});
-
-		const csvContent = [headers.join(","), ...rows].join("\n");
-
-		res.setHeader("Content-Type", "text/csv");
-		res.setHeader("Content-Disposition", `attachment; filename="sales-${Date.now()}.csv"`);
-		return res.send(csvContent);
-
-	} catch (error) {
-		next(error);
-	}
-};

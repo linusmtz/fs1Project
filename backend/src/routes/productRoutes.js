@@ -4,12 +4,11 @@ import {
 	getProducts,
 	getProductById,
 	updateProduct,
-	deleteProduct,
-	restockProduct
+	deleteProduct
 } from "../controllers/productController.js";
 
 import { authMiddleware, requireRole } from "../middlewares/authMiddleware.js";
-import { validateProduct, validateMongoId, validateRestock } from "../middlewares/validation.js";
+import { validateProduct, validateMongoId } from "../middlewares/validation.js";
 
 const router = Router();
 
@@ -22,6 +21,6 @@ router.get("/:id", authMiddleware, validateMongoId, getProductById);
 router.post("/", authMiddleware, requireRole("admin"), validateProduct, createProduct);
 router.put("/:id", authMiddleware, requireRole("admin"), validateMongoId, validateProduct, updateProduct);
 router.delete("/:id", authMiddleware, requireRole("admin"), validateMongoId, deleteProduct);
-router.patch("/:id/restock", authMiddleware, requireRole("admin"), validateMongoId, validateRestock, restockProduct);
 
 export default router;
+

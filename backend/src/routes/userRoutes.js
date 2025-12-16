@@ -1,24 +1,21 @@
 import { Router } from "express";
-import {
-	createUser,
-	getUsers,
-	updateUser,
-	toggleUserStatus
-} from "../controllers/userController.js";
+import { getUsers, createUser, updateUserRole, toggleUserStatus } from "../controllers/userController.js";
 import { authMiddleware, requireRole } from "../middlewares/authMiddleware.js";
-import {
-	validateUser,
-	validateUserUpdate,
-	validateMongoId,
-	validateUserStatus
-} from "../middlewares/validation.js";
+import { validateUser, validateMongoId } from "../middlewares/validation.js";
 
 const router = Router();
 
-// ADMIN
-router.post("/", authMiddleware, requireRole("admin"), validateUser, createUser);
+// ADMIN - Obtener todos los usuarios
 router.get("/", authMiddleware, requireRole("admin"), getUsers);
-router.put("/:id", authMiddleware, requireRole("admin"), validateMongoId, validateUserUpdate, updateUser);
-router.patch("/:id/status", authMiddleware, requireRole("admin"), validateMongoId, validateUserStatus, toggleUserStatus);
+
+// ADMIN - Crear usuario
+router.post("/", authMiddleware, requireRole("admin"), validateUser, createUser);
+
+// ADMIN - Actualizar rol de usuario
+router.put("/:id", authMiddleware, requireRole("admin"), validateMongoId, updateUserRole);
+
+// ADMIN - Activar/Desactivar usuario
+router.patch("/:id/status", authMiddleware, requireRole("admin"), validateMongoId, toggleUserStatus);
 
 export default router;
+
