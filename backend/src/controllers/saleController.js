@@ -49,6 +49,9 @@ export const createSale = async (req, res, next) => {
 			total
 		});
 
+		const timestamp = new Date().toISOString();
+		console.log(`[${timestamp}] Sale created - ID: ${sale._id}, Total: $${total.toFixed(2)}, Items: ${saleItems.length}, User: ${req.user.id}`);
+
 		// Registrar auditoría
 		const productNames = productsData.map(p => p.name).join(", ");
 		

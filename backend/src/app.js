@@ -12,11 +12,49 @@ import auditRoutes from "./routes/auditRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 
+// Middleware básico de logging para monitoreo
+app.use((req, res, next) => {
+	const start = Date.now();
+	const timestamp = new Date().toISOString();
+	
+	res.on('finish', () => {
+		const duration = Date.now() - start;
+		const logMessage = `[${timestamp}] ${req.method} ${req.originalUrl} - ${res.statusCode} - ${duration}ms - IP: ${req.ip || req.connection.remoteAddress}`;
+		
+		if (res.statusCode >= 400) {
+			console.error(logMessage);
+		} else {
+			console.log(logMessage);
+		}
+	});
+	
+	next();
+});
+
 const app = express();
 
 // Trust proxy - Necesario cuando la app está detrás de un proxy 
 // Esto permite que Express confíe en los headers X-Forwarded-* del proxy
 app.set('trust proxy', true);
+
+// Middleware básico de logging para monitoreo
+app.use((req, res, next) => {
+	const start = Date.now();
+	const timestamp = new Date().toISOString();
+	
+	res.on('finish', () => {
+		const duration = Date.now() - start;
+		const logMessage = `[${timestamp}] ${req.method} ${req.originalUrl} - ${res.statusCode} - ${duration}ms - IP: ${req.ip || req.connection.remoteAddress}`;
+		
+		if (res.statusCode >= 400) {
+			console.error(logMessage);
+		} else {
+			console.log(logMessage);
+		}
+	});
+	
+	next();
+});
 
 // Security middleware
 app.use(helmet());

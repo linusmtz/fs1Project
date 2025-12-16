@@ -1,5 +1,14 @@
 export const errorHandler = (err, req, res, next) => {
-	console.error("Error:", err);
+	// Log del error para monitoreo
+	const timestamp = new Date().toISOString();
+	console.error(`[${timestamp}] ERROR:`, {
+		message: err.message,
+		stack: err.stack,
+		method: req?.method,
+		url: req?.originalUrl || req?.url,
+		ip: req?.ip || req?.connection?.remoteAddress,
+		userId: req?.user?.id || 'anonymous'
+	});
 
 	// Error de validación de Mongoose
 	if (err.name === "ValidationError") {

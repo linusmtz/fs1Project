@@ -139,8 +139,8 @@ export default function Dashboard() {
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center space-x-8">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30 overflow-hidden">
-                    <img src="/logo.png" alt="Logo" className="w-full h-full object-contain p-1.5" />
+                  <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30 overflow-hidden">
+                    <img src="/logo.png" alt="Logo" className="w-full h-full object-contain p-2" />
                   </div>
                   <h1 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
                     Sistema de Gestión

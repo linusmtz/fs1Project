@@ -40,8 +40,8 @@ export default function Login() {
         <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 md:p-10 space-y-8 border border-white/20">
           {/* Logo/Header */}
           <div className="text-center space-y-3">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-lg mb-4 transform hover:scale-110 transition-transform duration-300 overflow-hidden">
-              <img src="/logo.png" alt="Logo" className="w-full h-full object-contain p-2" />
+            <div className="inline-flex items-center justify-center w-24 h-24 bg-white rounded-2xl shadow-lg mb-4 transform hover:scale-110 transition-transform duration-300 overflow-hidden">
+              <img src="/logo.png" alt="Logo" className="w-full h-full object-contain p-3" />
             </div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
               Bienvenido

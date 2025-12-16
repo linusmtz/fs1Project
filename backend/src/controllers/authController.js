@@ -20,6 +20,9 @@ export const login = async (req, res) => {
 			{ expiresIn: "1d" }
 		);
 
+		const timestamp = new Date().toISOString();
+		console.log(`[${timestamp}] Login successful - User: ${user.email} (${user.role})`);
+
 		return res.json({
 			message: "Login exitoso",
 			token,
