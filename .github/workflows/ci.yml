@@ -63,9 +63,6 @@ jobs:
           echo "PORT=${{ secrets.PORT || '3000' }}" > .env
           echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
-          # FRONTEND_URL: URL pública donde se sirve el frontend (para CORS)
-          # Ejemplo con Nginx: http://fs1.linusmartinez.com
-          # Ejemplo sin Nginx: http://fs1.linusmartinez.com:5173
           echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}" >> .env
           echo "NODE_ENV=production" >> .env
           # Oracle Cloud Object Storage (S3 Compatible) - Para subir imágenes de productos
