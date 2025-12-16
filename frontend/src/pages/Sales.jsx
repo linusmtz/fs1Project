@@ -21,6 +21,15 @@ export default function Sales() {
   const [quantity, setQuantity] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedSaleId, setExpandedSaleId] = useState(null);
+  
+  // Filtros de búsqueda
+  const [filters, setFilters] = useState({
+    dateFrom: "",
+    dateTo: "",
+    amountMin: "",
+    amountMax: "",
+    userId: "",
+  });
 
   const fetchSales = async () => {
     try {
@@ -181,16 +190,73 @@ export default function Sales() {
     }, 0);
   };
 
-  const totalPages = Math.max(1, Math.ceil(sales.length / SALES_PER_PAGE));
-  const paginatedSales = sales.slice(
+  // Obtener usuarios únicos de las ventas
+  const uniqueUsers = Array.from(
+    new Map(sales.map(sale => [sale.user?._id || sale.user, sale.user])).values()
+  ).filter(Boolean);
+
+  // Filtrar ventas
+  const filteredSales = sales.filter((sale) => {
+    // Filtro por fecha desde
+    if (filters.dateFrom) {
+      const saleDate = new Date(sale.createdAt);
+      const fromDate = new Date(filters.dateFrom);
+      fromDate.setHours(0, 0, 0, 0);
+      if (saleDate < fromDate) return false;
+    }
+
+    // Filtro por fecha hasta
+    if (filters.dateTo) {
+      const saleDate = new Date(sale.createdAt);
+      const toDate = new Date(filters.dateTo);
+      toDate.setHours(23, 59, 59, 999);
+      if (saleDate > toDate) return false;
+    }
+
+    // Filtro por monto mínimo
+    if (filters.amountMin) {
+      const minAmount = parseFloat(filters.amountMin);
+      if (sale.total < minAmount) return false;
+    }
+
+    // Filtro por monto máximo
+    if (filters.amountMax) {
+      const maxAmount = parseFloat(filters.amountMax);
+      if (sale.total > maxAmount) return false;
+    }
+
+    // Filtro por usuario
+    if (filters.userId) {
+      const saleUserId = sale.user?._id || sale.user;
+      if (saleUserId !== filters.userId) return false;
+    }
+
+    return true;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredSales.length / SALES_PER_PAGE));
+  const paginatedSales = filteredSales.slice(
     (currentPage - 1) * SALES_PER_PAGE,
     currentPage * SALES_PER_PAGE
   );
 
-  const totalRevenue = sales.reduce((acc, sale) => acc + Number(sale.total || 0), 0);
+  const clearFilters = () => {
+    setFilters({
+      dateFrom: "",
+      dateTo: "",
+      amountMin: "",
+      amountMax: "",
+      userId: "",
+    });
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters = Object.values(filters).some(value => value !== "");
+
+  const totalRevenue = filteredSales.reduce((acc, sale) => acc + Number(sale.total || 0), 0);
   const bestSeller = (() => {
     const map = {};
-    sales.forEach((sale) => {
+    filteredSales.forEach((sale) => {
       sale.items?.forEach((item) => {
         const key = item.product?._id || item.product;
         if (!key) return;
@@ -551,6 +617,109 @@ export default function Sales() {
           </section>
         )}
 
+        {/* Filtros de Búsqueda */}
+        <section className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Filtros de Búsqueda</h3>
+              <p className="text-sm text-gray-600">Filtra ventas por fecha, monto o usuario</p>
+            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hover:underline flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Limpiar filtros
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Fecha Desde</label>
+              <input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(e) => {
+                  setFilters({ ...filters, dateFrom: e.target.value });
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Fecha Hasta</label>
+              <input
+                type="date"
+                value={filters.dateTo}
+                onChange={(e) => {
+                  setFilters({ ...filters, dateTo: e.target.value });
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Monto Mínimo</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={filters.amountMin}
+                onChange={(e) => {
+                  setFilters({ ...filters, amountMin: e.target.value });
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Monto Máximo</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Sin límite"
+                value={filters.amountMax}
+                onChange={(e) => {
+                  setFilters({ ...filters, amountMax: e.target.value });
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Gestionado Por</label>
+              <select
+                value={filters.userId}
+                onChange={(e) => {
+                  setFilters({ ...filters, userId: e.target.value });
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white text-sm"
+              >
+                <option value="">Todos los usuarios</option>
+                {uniqueUsers.map((user) => (
+                  <option key={user._id || user} value={user._id || user}>
+                    {user.name || user.email || "Usuario"}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {hasActiveFilters && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <p className="text-sm text-gray-600">
+                Mostrando <span className="font-semibold text-indigo-600">{filteredSales.length}</span> de{" "}
+                <span className="font-semibold">{sales.length}</span> ventas
+              </p>
+            </div>
+          )}
+        </section>
+
         {/* Historial de Ventas */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -559,15 +728,19 @@ export default function Sales() {
               <div className="animate-ping absolute inset-0 h-16 w-16 border-4 border-indigo-400 rounded-full opacity-20"></div>
             </div>
           </div>
-        ) : sales.length === 0 ? (
+        ) : filteredSales.length === 0 ? (
           <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl p-16 border border-gray-200/50 text-center">
             <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
               <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
             </svg>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">No hay ventas aún</h3>
-            <p className="text-gray-600">Registra la primera venta para empezar</p>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">
+              {hasActiveFilters ? "No hay ventas que coincidan con los filtros" : "No hay ventas aún"}
+            </h3>
+            <p className="text-gray-600">
+              {hasActiveFilters ? "Intenta ajustar los filtros de búsqueda" : "Registra la primera venta para empezar"}
+            </p>
           </div>
         ) : (
           <section className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 overflow-hidden">
