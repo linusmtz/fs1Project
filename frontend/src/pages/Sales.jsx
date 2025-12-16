@@ -195,43 +195,97 @@ export default function Sales() {
     new Map(sales.map(sale => [sale.user?._id || sale.user, sale.user])).values()
   ).filter(Boolean);
 
-  // Filtrar ventas
-  const filteredSales = sales.filter((sale) => {
-    // Filtro por fecha desde
-    if (filters.dateFrom) {
-      const saleDate = new Date(sale.createdAt);
+  // Validar filtros
+  const validateFilters = () => {
+    const errors = {};
+
+    // Validar rango de fechas
+    if (filters.dateFrom && filters.dateTo) {
       const fromDate = new Date(filters.dateFrom);
-      fromDate.setHours(0, 0, 0, 0);
-      if (saleDate < fromDate) return false;
-    }
-
-    // Filtro por fecha hasta
-    if (filters.dateTo) {
-      const saleDate = new Date(sale.createdAt);
       const toDate = new Date(filters.dateTo);
-      toDate.setHours(23, 59, 59, 999);
-      if (saleDate > toDate) return false;
+      if (fromDate > toDate) {
+        errors.dateRange = "La fecha 'desde' no puede ser mayor que la fecha 'hasta'";
+      }
     }
 
-    // Filtro por monto mínimo
+    // Validar montos
     if (filters.amountMin) {
       const minAmount = parseFloat(filters.amountMin);
-      if (sale.total < minAmount) return false;
+      if (isNaN(minAmount) || minAmount < 0) {
+        errors.amountMin = "El monto mínimo debe ser un número positivo";
+      }
     }
 
-    // Filtro por monto máximo
     if (filters.amountMax) {
       const maxAmount = parseFloat(filters.amountMax);
-      if (sale.total > maxAmount) return false;
+      if (isNaN(maxAmount) || maxAmount < 0) {
+        errors.amountMax = "El monto máximo debe ser un número positivo";
+      }
     }
 
-    // Filtro por usuario
-    if (filters.userId) {
-      const saleUserId = sale.user?._id || sale.user;
-      if (saleUserId !== filters.userId) return false;
+    // Validar rango de montos
+    if (filters.amountMin && filters.amountMax) {
+      const minAmount = parseFloat(filters.amountMin);
+      const maxAmount = parseFloat(filters.amountMax);
+      if (!isNaN(minAmount) && !isNaN(maxAmount) && minAmount > maxAmount) {
+        errors.amountRange = "El monto mínimo no puede ser mayor que el monto máximo";
+      }
     }
 
-    return true;
+    return errors;
+  };
+
+  const filterErrors = validateFilters();
+  const hasFilterErrors = Object.keys(filterErrors).length > 0;
+
+  // Filtrar ventas (solo si no hay errores de validación)
+  const filteredSales = hasFilterErrors ? [] : sales.filter((sale) => {
+    try {
+      // Filtro por fecha desde
+      if (filters.dateFrom) {
+        const saleDate = new Date(sale.createdAt);
+        const fromDate = new Date(filters.dateFrom);
+        if (isNaN(saleDate.getTime()) || isNaN(fromDate.getTime())) return false;
+        fromDate.setHours(0, 0, 0, 0);
+        if (saleDate < fromDate) return false;
+      }
+
+      // Filtro por fecha hasta
+      if (filters.dateTo) {
+        const saleDate = new Date(sale.createdAt);
+        const toDate = new Date(filters.dateTo);
+        if (isNaN(saleDate.getTime()) || isNaN(toDate.getTime())) return false;
+        toDate.setHours(23, 59, 59, 999);
+        if (saleDate > toDate) return false;
+      }
+
+      // Filtro por monto mínimo
+      if (filters.amountMin) {
+        const minAmount = parseFloat(filters.amountMin);
+        if (isNaN(minAmount) || minAmount < 0) return false;
+        const saleTotal = parseFloat(sale.total) || 0;
+        if (saleTotal < minAmount) return false;
+      }
+
+      // Filtro por monto máximo
+      if (filters.amountMax) {
+        const maxAmount = parseFloat(filters.amountMax);
+        if (isNaN(maxAmount) || maxAmount < 0) return false;
+        const saleTotal = parseFloat(sale.total) || 0;
+        if (saleTotal > maxAmount) return false;
+      }
+
+      // Filtro por usuario
+      if (filters.userId) {
+        const saleUserId = sale.user?._id || sale.user;
+        if (!saleUserId || saleUserId.toString() !== filters.userId.toString()) return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error filtrando venta:", error);
+      return false;
+    }
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredSales.length / SALES_PER_PAGE));
@@ -636,17 +690,49 @@ export default function Sales() {
               </button>
             )}
           </div>
+          
+          {/* Mensajes de error de validación */}
+          {hasFilterErrors && (
+            <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 rounded-lg">
+              <div className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-red-800 mb-1">Errores en los filtros:</p>
+                  <ul className="text-xs text-red-700 space-y-1">
+                    {filterErrors.dateRange && <li>• {filterErrors.dateRange}</li>}
+                    {filterErrors.amountMin && <li>• {filterErrors.amountMin}</li>}
+                    {filterErrors.amountMax && <li>• {filterErrors.amountMax}</li>}
+                    {filterErrors.amountRange && <li>• {filterErrors.amountRange}</li>}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Fecha Desde</label>
               <input
                 type="date"
                 value={filters.dateFrom}
+                max={filters.dateTo || undefined}
                 onChange={(e) => {
-                  setFilters({ ...filters, dateFrom: e.target.value });
+                  const newDateFrom = e.target.value;
+                  setFilters({ ...filters, dateFrom: newDateFrom });
                   setCurrentPage(1);
                 }}
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white text-sm"
+                onBlur={(e) => {
+                  // Validar que la fecha desde no sea mayor que fecha hasta
+                  if (filters.dateTo && e.target.value > filters.dateTo) {
+                    setError("La fecha 'desde' no puede ser mayor que la fecha 'hasta'");
+                    setTimeout(() => setError(""), 5000);
+                  }
+                }}
+                className={`w-full px-3 py-2 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white text-sm ${
+                  filterErrors.dateRange ? "border-red-300 focus:ring-red-500" : "border-gray-200"
+                }`}
               />
             </div>
             <div>
@@ -654,11 +740,22 @@ export default function Sales() {
               <input
                 type="date"
                 value={filters.dateTo}
+                min={filters.dateFrom || undefined}
                 onChange={(e) => {
-                  setFilters({ ...filters, dateTo: e.target.value });
+                  const newDateTo = e.target.value;
+                  setFilters({ ...filters, dateTo: newDateTo });
                   setCurrentPage(1);
                 }}
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white text-sm"
+                onBlur={(e) => {
+                  // Validar que la fecha hasta no sea menor que fecha desde
+                  if (filters.dateFrom && e.target.value < filters.dateFrom) {
+                    setError("La fecha 'hasta' no puede ser menor que la fecha 'desde'");
+                    setTimeout(() => setError(""), 5000);
+                  }
+                }}
+                className={`w-full px-3 py-2 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white text-sm ${
+                  filterErrors.dateRange ? "border-red-300 focus:ring-red-500" : "border-gray-200"
+                }`}
               />
             </div>
             <div>
@@ -670,10 +767,30 @@ export default function Sales() {
                 placeholder="0.00"
                 value={filters.amountMin}
                 onChange={(e) => {
-                  setFilters({ ...filters, amountMin: e.target.value });
-                  setCurrentPage(1);
+                  const value = e.target.value;
+                  // Solo permitir números positivos o vacío
+                  if (value === "" || (!isNaN(value) && parseFloat(value) >= 0)) {
+                    setFilters({ ...filters, amountMin: value });
+                    setCurrentPage(1);
+                  }
                 }}
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white text-sm"
+                onBlur={(e) => {
+                  const value = parseFloat(e.target.value);
+                  // Validar que no sea negativo
+                  if (e.target.value && (isNaN(value) || value < 0)) {
+                    setFilters({ ...filters, amountMin: "" });
+                    setError("El monto mínimo debe ser un número positivo");
+                    setTimeout(() => setError(""), 5000);
+                  }
+                  // Validar que no sea mayor que monto máximo
+                  if (filters.amountMax && value > parseFloat(filters.amountMax)) {
+                    setError("El monto mínimo no puede ser mayor que el monto máximo");
+                    setTimeout(() => setError(""), 5000);
+                  }
+                }}
+                className={`w-full px-3 py-2 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white text-sm ${
+                  filterErrors.amountMin || filterErrors.amountRange ? "border-red-300 focus:ring-red-500" : "border-gray-200"
+                }`}
               />
             </div>
             <div>
@@ -681,14 +798,34 @@ export default function Sales() {
               <input
                 type="number"
                 step="0.01"
-                min="0"
+                min={filters.amountMin || "0"}
                 placeholder="Sin límite"
                 value={filters.amountMax}
                 onChange={(e) => {
-                  setFilters({ ...filters, amountMax: e.target.value });
-                  setCurrentPage(1);
+                  const value = e.target.value;
+                  // Solo permitir números positivos o vacío
+                  if (value === "" || (!isNaN(value) && parseFloat(value) >= 0)) {
+                    setFilters({ ...filters, amountMax: value });
+                    setCurrentPage(1);
+                  }
                 }}
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white text-sm"
+                onBlur={(e) => {
+                  const value = parseFloat(e.target.value);
+                  // Validar que no sea negativo
+                  if (e.target.value && (isNaN(value) || value < 0)) {
+                    setFilters({ ...filters, amountMax: "" });
+                    setError("El monto máximo debe ser un número positivo");
+                    setTimeout(() => setError(""), 5000);
+                  }
+                  // Validar que no sea menor que monto mínimo
+                  if (filters.amountMin && value < parseFloat(filters.amountMin)) {
+                    setError("El monto máximo no puede ser menor que el monto mínimo");
+                    setTimeout(() => setError(""), 5000);
+                  }
+                }}
+                className={`w-full px-3 py-2 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white text-sm ${
+                  filterErrors.amountMax || filterErrors.amountRange ? "border-red-300 focus:ring-red-500" : "border-gray-200"
+                }`}
               />
             </div>
             <div>
@@ -710,11 +847,18 @@ export default function Sales() {
               </select>
             </div>
           </div>
-          {hasActiveFilters && (
+          {hasActiveFilters && !hasFilterErrors && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <p className="text-sm text-gray-600">
                 Mostrando <span className="font-semibold text-indigo-600">{filteredSales.length}</span> de{" "}
                 <span className="font-semibold">{sales.length}</span> ventas
+              </p>
+            </div>
+          )}
+          {hasFilterErrors && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <p className="text-sm text-amber-600 font-medium">
+                ⚠️ Corrige los errores en los filtros para ver los resultados
               </p>
             </div>
           )}
