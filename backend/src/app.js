@@ -14,6 +14,10 @@ import { errorHandler } from "./middlewares/errorHandler.js";
 
 const app = express();
 
+// Trust proxy - Necesario cuando la app está detrás de un proxy 
+// Esto permite que Express confíe en los headers X-Forwarded-* del proxy
+app.set('trust proxy', true);
+
 // Security middleware
 app.use(helmet());
 

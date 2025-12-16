@@ -62,3 +62,106 @@ export const getSales = async (req, res, next) => {
 	}
 };
 
+export const exportSalesCSV = async (req, res, next) => {
+	try {
+		const sales = await Sale.find()
+			.sort({ createdAt: -1 })
+			.populate("user", "name email")
+			.populate("items.product", "name category price");
+
+		// Crear CSV
+		const headers = [
+			"Fecha",
+			"Usuario",
+			"Email",
+			"Producto",
+			"Categoría",
+			"Cantidad",
+			"Precio Unitario",
+			"Subtotal",
+			"Total Venta"
+		];
+
+		const rows = [];
+
+		sales.forEach((sale) => {
+			const saleDate = new Date(sale.createdAt).toLocaleString("es-MX", {
+				year: "numeric",
+				month: "2-digit",
+				day: "2-digit",
+				hour: "2-digit",
+				minute: "2-digit"
+			});
+
+			const userName = sale.user?.name || "N/A";
+			const userEmail = sale.user?.email || "N/A";
+
+			if (sale.items && sale.items.length > 0) {
+				sale.items.forEach((item, index) => {
+					const productName = item.product?.name || "Producto eliminado";
+					const category = item.product?.category || "N/A";
+					const quantity = item.quantity || 0;
+					const price = item.price || 0;
+					const subtotal = quantity * price;
+
+					// Solo mostrar el total de la venta en la primera fila de cada venta
+					const totalVenta = index === 0 ? sale.total.toFixed(2) : "";
+
+					rows.push([
+						index === 0 ? saleDate : "", // Fecha solo en primera fila
+						index === 0 ? userName : "", // Usuario solo en primera fila
+						index === 0 ? userEmail : "", // Email solo en primera fila
+						productName,
+						category,
+						quantity.toString(),
+						price.toFixed(2),
+						subtotal.toFixed(2),
+						totalVenta
+					]);
+				});
+			} else {
+				// Venta sin items
+				rows.push([
+					saleDate,
+					userName,
+					userEmail,
+					"N/A",
+					"N/A",
+					"0",
+					"0.00",
+					"0.00",
+					sale.total.toFixed(2)
+				]);
+			}
+		});
+
+		// Convertir a CSV
+		const csvContent = [
+			headers.join(","),
+			...rows.map(row => 
+				row.map(cell => {
+					// Escapar comillas y envolver en comillas si contiene comas o comillas
+					const cellStr = String(cell);
+					if (cellStr.includes(",") || cellStr.includes('"') || cellStr.includes("\n")) {
+						return `"${cellStr.replace(/"/g, '""')}"`;
+					}
+					return cellStr;
+				}).join(",")
+			)
+		].join("\n");
+
+		// Agregar BOM para Excel (UTF-8)
+		const BOM = "\uFEFF";
+		const csvWithBOM = BOM + csvContent;
+
+		// Configurar headers para descarga
+		res.setHeader("Content-Type", "text/csv; charset=utf-8");
+		res.setHeader("Content-Disposition", `attachment; filename="ventas-${new Date().toISOString().split("T")[0]}.csv"`);
+		
+		res.send(csvWithBOM);
+
+	} catch (error) {
+		next(error);
+	}
+};
+

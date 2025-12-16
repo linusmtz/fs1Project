@@ -26,6 +26,8 @@ export default function Products() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [modalImageUrl, setModalImageUrl] = useState(null);
   const fileInputRef = useRef(null);
 
   const fetchProducts = async () => {
@@ -58,9 +60,27 @@ export default function Products() {
     setSelectedImage(null);
     setImagePreview(null);
     setEditingId(null);
+    setShowImageModal(false);
     // Limpiar el input file
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    setForm((prev) => ({ ...prev, imageUrl: "" }));
+    // Limpiar el input file
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const openImageModal = (imageUrl) => {
+    if (imageUrl) {
+      setModalImageUrl(imageUrl);
+      setShowImageModal(true);
     }
   };
 
@@ -467,23 +487,36 @@ export default function Products() {
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50 focus:bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
                       />
                       {imagePreview && (
-                        <div className="relative w-full h-48 rounded-xl overflow-hidden border-2 border-gray-200">
+                        <div className="relative w-full h-48 rounded-xl overflow-hidden border-2 border-gray-200 group">
                           <img
                             src={imagePreview}
                             alt="Preview"
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => openImageModal(imagePreview)}
                           />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openImageModal(imagePreview);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 bg-white/90 hover:bg-white text-gray-800 rounded-lg px-3 py-2 text-sm font-semibold transition-all flex items-center gap-2 shadow-lg"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                              </svg>
+                              Ver más grande
+                            </button>
+                          </div>
                           <button
                             type="button"
-                            onClick={() => {
-                              setSelectedImage(null);
-                              setImagePreview(editingId ? form.imageUrl : null);
-                              // Limpiar el input file
-                              if (fileInputRef.current) {
-                                fileInputRef.current.value = "";
-                              }
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveImage();
                             }}
-                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 shadow-lg transition-all"
+                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 shadow-lg transition-all z-10"
+                            title="Eliminar imagen"
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -521,7 +554,7 @@ export default function Products() {
                     Vista Previa
                   </p>
                   <div className="bg-white rounded-xl shadow-md p-4 flex space-x-4">
-                    <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden shadow-inner">
+                    <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden shadow-inner cursor-pointer hover:opacity-80 transition-opacity" onClick={() => imagePreview && openImageModal(imagePreview)}>
                       {imagePreview ? (
                         <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
                       ) : (
@@ -598,7 +631,9 @@ export default function Products() {
                                 <img 
                                   src={p.imageUrl} 
                                   alt={p.name} 
-                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300 cursor-pointer"
+                                  onClick={() => openImageModal(p.imageUrl)}
+                                  title="Click para ver más grande"
                                 />
                               ) : (
                                 <svg className="w-10 h-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -691,6 +726,32 @@ export default function Products() {
           </section>
         </div>
       </main>
+
+      {/* Modal de imagen ampliada */}
+      {showImageModal && modalImageUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
+          onClick={() => setShowImageModal(false)}
+        >
+          <div className="relative max-w-7xl max-h-[90vh] w-full h-full flex items-center justify-center">
+            <img
+              src={modalImageUrl}
+              alt="Imagen ampliada"
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button
+              onClick={() => setShowImageModal(false)}
+              className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white rounded-full p-3 shadow-lg transition-all backdrop-blur-sm"
+              title="Cerrar"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes slide-in {

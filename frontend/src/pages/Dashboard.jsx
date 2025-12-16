@@ -55,8 +55,20 @@ export default function Dashboard() {
   const downloadSalesReport = async () => {
     try {
       setExporting(true)
-      const response = await axiosClient.get("/sales/export", { responseType: "blob" })
-      const url = window.URL.createObjectURL(new Blob([response.data]))
+      setError("")
+      const response = await axiosClient.get("/sales/export", { 
+        responseType: "blob",
+        headers: {
+          Accept: "text/csv"
+        }
+      })
+      
+      // Verificar que la respuesta sea un blob válido
+      if (!response.data || response.data.size === 0) {
+        throw new Error("El archivo CSV está vacío")
+      }
+
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: "text/csv;charset=utf-8;" }))
       const link = document.createElement("a")
       const date = new Date().toISOString().split("T")[0]
       link.href = url
@@ -65,8 +77,24 @@ export default function Dashboard() {
       link.click()
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
+      
+      // Mostrar mensaje de éxito
+      setSuccess("Ventas exportadas exitosamente")
+      setTimeout(() => setSuccess(""), 3000)
     } catch (err) {
-      setError(err.response?.data?.message || "No se pudo exportar las ventas")
+      console.error("Error exporting sales:", err)
+      // Si el error es un blob (respuesta de error del servidor), intentar leerlo
+      if (err.response?.data instanceof Blob) {
+        const text = await err.response.data.text()
+        try {
+          const errorData = JSON.parse(text)
+          setError(errorData.message || "No se pudo exportar las ventas")
+        } catch {
+          setError("Error al exportar las ventas. Verifica que tengas permisos de administrador.")
+        }
+      } else {
+        setError(err.response?.data?.message || err.message || "No se pudo exportar las ventas")
+      }
     } finally {
       setExporting(false)
     }
