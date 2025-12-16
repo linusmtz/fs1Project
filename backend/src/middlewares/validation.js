@@ -30,8 +30,23 @@ export const validateUser = [
 	body("password")
 		.notEmpty()
 		.withMessage("La contraseña es requerida")
-		.isLength({ min: 6 })
-		.withMessage("La contraseña debe tener al menos 6 caracteres"),
+		.isLength({ min: 8 })
+		.withMessage("La contraseña debe tener al menos 8 caracteres")
+		.custom((value) => {
+			// Validar que tenga al menos una mayúscula
+			if (!/[A-Z]/.test(value)) {
+				throw new Error("La contraseña debe contener al menos una letra mayúscula");
+			}
+			// Validar que tenga al menos una minúscula
+			if (!/[a-z]/.test(value)) {
+				throw new Error("La contraseña debe contener al menos una letra minúscula");
+			}
+			// Validar que tenga al menos un número
+			if (!/[0-9]/.test(value)) {
+				throw new Error("La contraseña debe contener al menos un número");
+			}
+			return true;
+		}),
 	body("role")
 		.optional()
 		.isIn(["admin", "vendedor"])

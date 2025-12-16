@@ -27,6 +27,12 @@ export default function Users() {
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState(initialForm)
   const [formErrors, setFormErrors] = useState({})
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    minLength: false,
+    hasUpperCase: false,
+    hasLowerCase: false,
+    hasNumber: false,
+  })
 
   const fetchUsers = async () => {
     if (!isAdmin) return
@@ -76,6 +82,17 @@ export default function Users() {
     }
   }
 
+  const validatePassword = (password) => {
+    const requirements = {
+      minLength: password.length >= 8,
+      hasUpperCase: /[A-Z]/.test(password),
+      hasLowerCase: /[a-z]/.test(password),
+      hasNumber: /[0-9]/.test(password),
+    }
+    setPasswordRequirements(requirements)
+    return Object.values(requirements).every((req) => req === true)
+  }
+
   const validateForm = () => {
     const errors = {}
     
@@ -87,8 +104,10 @@ export default function Users() {
       errors.email = "El email no es válido"
     }
     
-    if (!form.password || form.password.length < 6) {
-      errors.password = "La contraseña debe tener al menos 6 caracteres"
+    if (!form.password) {
+      errors.password = "La contraseña es requerida"
+    } else if (!validatePassword(form.password)) {
+      errors.password = "La contraseña no cumple con los requisitos de seguridad"
     }
     
     setFormErrors(errors)
@@ -112,6 +131,12 @@ export default function Users() {
       await axiosClient.post("/users", form)
       setSuccess("Usuario creado correctamente")
       setForm(initialForm)
+      setPasswordRequirements({
+        minLength: false,
+        hasUpperCase: false,
+        hasLowerCase: false,
+        hasNumber: false,
+      })
       fetchUsers()
     } catch (err) {
       let errorMessage = "No se pudo crear el usuario"
@@ -297,7 +322,9 @@ export default function Users() {
                   type="password"
                   value={form.password}
                   onChange={(e) => {
-                    setForm({ ...form, password: e.target.value })
+                    const newPassword = e.target.value
+                    setForm({ ...form, password: newPassword })
+                    validatePassword(newPassword)
                     if (formErrors.password) setFormErrors({ ...formErrors, password: "" })
                   }}
                   className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white hover:border-blue-300 ${
@@ -306,6 +333,69 @@ export default function Users() {
                   placeholder="••••••••"
                   required
                 />
+                {form.password && (
+                  <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                    <p className="text-xs font-semibold text-gray-700 mb-2">Requisitos de contraseña:</p>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        {passwordRequirements.minLength ? (
+                          <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                        <span className={`text-xs ${passwordRequirements.minLength ? "text-green-600 font-medium" : "text-gray-600"}`}>
+                          Mínimo 8 caracteres
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {passwordRequirements.hasUpperCase ? (
+                          <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                        <span className={`text-xs ${passwordRequirements.hasUpperCase ? "text-green-600 font-medium" : "text-gray-600"}`}>
+                          Al menos una letra mayúscula
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {passwordRequirements.hasLowerCase ? (
+                          <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                        <span className={`text-xs ${passwordRequirements.hasLowerCase ? "text-green-600 font-medium" : "text-gray-600"}`}>
+                          Al menos una letra minúscula
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {passwordRequirements.hasNumber ? (
+                          <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                        <span className={`text-xs ${passwordRequirements.hasNumber ? "text-green-600 font-medium" : "text-gray-600"}`}>
+                          Al menos un número
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {formErrors.password && (
                   <p className="text-xs text-red-600 font-medium mt-1">{formErrors.password}</p>
                 )}
