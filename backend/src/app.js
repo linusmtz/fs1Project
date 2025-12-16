@@ -9,6 +9,7 @@ import productRoutes from "./routes/productRoutes.js";
 import saleRoutes from "./routes/saleRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import auditRoutes from "./routes/auditRoutes.js";
+import uploadRoutes from "./routes/uploadRoutes.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 
 const app = express();
@@ -65,6 +66,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/sales", saleRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/audit", auditRoutes);
+app.use("/api/upload", uploadRoutes);
 
 // Error handler 
 app.use(errorHandler);

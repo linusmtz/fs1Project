@@ -1,4 +1,4 @@
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useState, useContext, useRef } from "react";
 import { Link } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
 import { AuthContext } from "../context/AuthContext";
@@ -23,6 +23,10 @@ export default function Products() {
     description: "",
     imageUrl: "",
   });
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef(null);
 
   const fetchProducts = async () => {
     try {
@@ -51,7 +55,13 @@ export default function Products() {
       description: "",
       imageUrl: "",
     });
+    setSelectedImage(null);
+    setImagePreview(null);
     setEditingId(null);
+    // Limpiar el input file
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleEdit = (product) => {
@@ -63,11 +73,44 @@ export default function Products() {
       description: product.description || "",
       imageUrl: product.imageUrl || "",
     });
+    setSelectedImage(null);
+    setImagePreview(product.imageUrl || null);
     setEditingId(product._id);
+    // Limpiar el input file
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validar tipo de archivo
+      if (!file.type.startsWith("image/")) {
+        setError("Por favor selecciona un archivo de imagen");
+        return;
+      }
+      // Validar tamaño (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError("La imagen es demasiado grande. Máximo 5MB");
+        return;
+      }
+      setSelectedImage(file);
+      // Crear preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleInputChange = (field, value) => {
+    // Limpiar error cuando el usuario empieza a escribir
+    if (error && (field === "price" || field === "stock")) {
+      setError("");
+    }
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -76,10 +119,46 @@ export default function Products() {
     try {
       setError("");
       setSuccess("");
+
+      // Validar valores negativos antes de enviar
+      const price = Number(form.price);
+      const stock = Number(form.stock);
+
+      if (price < 0) {
+        setError("El precio no puede ser negativo");
+        return;
+      }
+
+      if (stock < 0) {
+        setError("El stock no puede ser negativo");
+        return;
+      }
+
+      setUploadingImage(true);
+
+      let imageUrl = form.imageUrl;
+
+      // Si hay una imagen seleccionada, subirla primero
+      if (selectedImage) {
+        try {
+          const formData = new FormData();
+          formData.append("image", selectedImage);
+          
+          // No establecer Content-Type manualmente, axios lo hace automáticamente para FormData
+          const uploadRes = await axiosClient.post("/upload/image", formData);
+          imageUrl = uploadRes.data.imageUrl;
+        } catch (uploadErr) {
+          setUploadingImage(false);
+          setError(uploadErr.response?.data?.message || "Error al subir la imagen");
+          return;
+        }
+      }
+
       const payload = {
         ...form,
         price: Number(form.price),
         stock: Number(form.stock),
+        imageUrl: imageUrl || undefined, // Solo incluir si hay URL
       };
 
       if (editingId) {
@@ -97,6 +176,8 @@ export default function Products() {
         ? err.response.data.errors.join(", ")
         : err.response?.data?.message || "Ocurrió un error al guardar el producto";
       setError(errorMsg);
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -260,7 +341,7 @@ export default function Products() {
                     </p>
                     <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                       {editingId ? "Actualizar" : "Crear Producto"}
-                    </h2>
+              </h2>
                   </div>
                   {editingId && (
                     <button
@@ -273,68 +354,90 @@ export default function Products() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
+                <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Nombre del Producto
-                    </label>
-                    <input
-                      type="text"
+                  </label>
+                  <input
+                    type="text"
                       placeholder="Ej. Camiseta Premium"
-                      value={form.name}
+                    value={form.name}
                       onChange={(e) => handleInputChange("name", e.target.value)}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50 focus:bg-white"
-                      required
-                    />
-                  </div>
+                    required
+                  />
+                </div>
 
-                  <div>
+                <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Categoría
-                    </label>
-                    <input
-                      type="text"
+                    Categoría
+                  </label>
+                  <input
+                    type="text"
                       placeholder="Categoría o colección"
-                      value={form.category}
+                    value={form.category}
                       onChange={(e) => handleInputChange("category", e.target.value)}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50 focus:bg-white"
-                      required
-                    />
-                  </div>
+                    required
+                  />
+                </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
+                <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Precio
-                      </label>
+                    Precio
+                  </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500 font-semibold">
                           $
                         </div>
-                        <input
-                          type="number"
-                          step="0.01"
+                  <input
+                    type="number"
+                    step="0.01"
                           min="0"
-                          placeholder="0.00"
-                          value={form.price}
-                          onChange={(e) => handleInputChange("price", e.target.value)}
+                    placeholder="0.00"
+                    value={form.price}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "" || (!isNaN(value) && parseFloat(value) >= 0)) {
+                              handleInputChange("price", value);
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const value = parseFloat(e.target.value);
+                            if (isNaN(value) || value < 0) {
+                              handleInputChange("price", "0");
+                            }
+                          }}
                           className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50 focus:bg-white"
-                          required
-                        />
-                      </div>
+                    required
+                  />
+                </div>
                     </div>
-                    <div>
+                <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Stock
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="0"
-                        value={form.stock}
-                        onChange={(e) => handleInputChange("stock", e.target.value)}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50 focus:bg-white"
-                        required
-                      />
+                    Stock
+                  </label>
+                  <input
+                    type="number"
+                          min="0"
+                    placeholder="0"
+                    value={form.stock}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "" || (!isNaN(value) && parseInt(value) >= 0)) {
+                              handleInputChange("stock", value);
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const value = parseInt(e.target.value);
+                            if (isNaN(value) || value < 0) {
+                              handleInputChange("stock", "0");
+                            }
+                          }}
+                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50 focus:bg-white"
+                    required
+                  />
                     </div>
                   </div>
 
@@ -353,24 +456,62 @@ export default function Products() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      URL de Imagen
+                      Imagen del Producto
                     </label>
-                    <input
-                      type="url"
-                      placeholder="https://ejemplo.com/imagen.jpg"
-                      value={form.imageUrl}
-                      onChange={(e) => handleInputChange("imageUrl", e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50 focus:bg-white"
-                    />
-                  </div>
+                    <div className="space-y-3">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageSelect}
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50 focus:bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                      />
+                      {imagePreview && (
+                        <div className="relative w-full h-48 rounded-xl overflow-hidden border-2 border-gray-200">
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedImage(null);
+                              setImagePreview(editingId ? form.imageUrl : null);
+                              // Limpiar el input file
+                              if (fileInputRef.current) {
+                                fileInputRef.current.value = "";
+                              }
+                            }}
+                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 shadow-lg transition-all"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">
+                      Formatos permitidos: JPG, PNG, WEBP. Tamaño máximo: 5MB
+                    </p>
+                </div>
 
-                  <button
-                    type="submit"
-                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-3.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transform"
+                <button
+                  type="submit"
+                    disabled={uploadingImage}
+                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transform flex items-center justify-center gap-2"
                   >
-                    {editingId ? "Actualizar Producto" : "Crear Producto"}
-                  </button>
-                </form>
+                    {uploadingImage ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                        <span>Subiendo imagen...</span>
+                      </>
+                    ) : (
+                      <span>{editingId ? "Actualizar Producto" : "Crear Producto"}</span>
+                    )}
+                </button>
+              </form>
               </div>
 
               {/* Live preview */}
@@ -381,8 +522,8 @@ export default function Products() {
                   </p>
                   <div className="bg-white rounded-xl shadow-md p-4 flex space-x-4">
                     <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden shadow-inner">
-                      {form.imageUrl ? (
-                        <img src={form.imageUrl} alt="preview" className="w-full h-full object-cover" />
+                      {imagePreview ? (
+                        <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
                       ) : (
                         <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -398,8 +539,8 @@ export default function Products() {
                         {form.price ? `$${Number(form.price).toFixed(2)}` : "$0.00"}
                       </p>
                     </div>
-                  </div>
-                </div>
+            </div>
+          </div>
               )}
             </section>
           )}
@@ -446,25 +587,29 @@ export default function Products() {
                   <div className="grid grid-cols-1 gap-4 p-6">
                     {paginatedProducts.map((p, idx) => (
                       <article
-                        key={p._id}
+                      key={p._id}
                         className="group p-5 rounded-xl border-2 border-gray-200 hover:border-indigo-300 hover:shadow-xl transition-all duration-300 bg-white transform hover:scale-[1.02]"
                         style={{ animationDelay: `${idx * 50}ms` }}
                       >
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                           <div className="flex items-start space-x-4 flex-1">
-                            <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden shadow-lg group-hover:shadow-xl transition-shadow">
+                            <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden shadow-lg group-hover:shadow-xl transition-shadow relative">
                               {p.imageUrl ? (
-                                <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
+                                <img 
+                                  src={p.imageUrl} 
+                                  alt={p.name} 
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                />
                               ) : (
                                 <svg className="w-10 h-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                               )}
                             </div>
-                            <div className="flex-1">
+                      <div className="flex-1">
                               <h3 className="text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
-                                {p.name}
-                              </h3>
+                          {p.name}
+                        </h3>
                               <p className="text-sm text-gray-600 font-medium mt-1">{p.category}</p>
                               {p.description && (
                                 <p className="mt-2 text-sm text-gray-600 line-clamp-2">
@@ -472,9 +617,9 @@ export default function Products() {
                                 </p>
                               )}
                             </div>
-                          </div>
+                      </div>
                           <div className="flex items-center gap-6">
-                            <div className="text-right">
+                      <div className="text-right">
                               <p className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                                 ${Number(p.price).toFixed(2)}
                               </p>

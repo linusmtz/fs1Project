@@ -54,8 +54,13 @@ export default function Sales() {
   }, []);
 
   const addItemToSale = () => {
-    if (!selectedProduct || quantity < 1) {
-      setError("Selecciona un producto y una cantidad válida");
+    if (!selectedProduct) {
+      setError("Selecciona un producto");
+      return;
+    }
+    
+    if (!quantity || quantity < 1) {
+      setError("La cantidad debe ser mayor a 0");
       return;
     }
 
@@ -368,7 +373,22 @@ export default function Sales() {
                   type="number"
                   min="1"
                   value={quantity}
-                  onChange={(e) => setQuantity(parseInt(e.target.value, 10) || 1)}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value, 10);
+                    if (isNaN(value) || value < 1) {
+                      setQuantity(1);
+                      setError("La cantidad debe ser mayor a 0");
+                    } else {
+                      setQuantity(value);
+                      setError(""); // Limpiar error si el valor es válido
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const value = parseInt(e.target.value, 10);
+                    if (isNaN(value) || value < 1) {
+                      setQuantity(1);
+                    }
+                  }}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50 focus:bg-white"
                 />
               </div>

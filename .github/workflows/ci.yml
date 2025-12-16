@@ -68,6 +68,12 @@ jobs:
           # Ejemplo sin Nginx: http://fs1.linusmartinez.com:5173
           echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}" >> .env
           echo "NODE_ENV=production" >> .env
+          # Oracle Cloud Object Storage (S3 Compatible) - Para subir imágenes de productos
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+          echo "AWS_STORAGE_BUCKET_NAME=${{ secrets.AWS_STORAGE_BUCKET_NAME }}" >> .env
+          echo "AWS_S3_REGION_NAME=${{ secrets.AWS_S3_REGION_NAME }}" >> .env
+          echo "AWS_S3_ENDPOINT_URL=${{ secrets.AWS_S3_ENDPOINT_URL }}" >> .env
 
       - name: Stop existing backend (if running)
         run: |
