@@ -41,16 +41,23 @@ Sistema web fullstack para la gestión de inventario de productos y registro de 
 
 - ✅ Autenticación JWT con roles (admin/vendedor)
 - ✅ CRUD completo de productos
+- ✅ **Upload de imágenes de productos a Oracle Cloud Object Storage**
 - ✅ Sistema de ventas con validación de stock
+- ✅ **Edición de cantidades en ventas antes de confirmar**
+- ✅ **Filtros avanzados de búsqueda en ventas** (fecha, monto, usuario)
+- ✅ **Exportación de ventas a CSV** con formato compatible con Excel
 - ✅ Actualización automática de inventario
 - ✅ Dashboard con analytics y estadísticas en tiempo real
 - ✅ Sistema de auditoría completo (registro de todas las acciones)
 - ✅ Gestión de usuarios (crear, editar roles, activar/desactivar)
+- ✅ **Validación de contraseña segura** (mínimo 8 caracteres, mayúscula, minúscula, número)
+- ✅ **Modal de visualización de imágenes** (click para ampliar)
 - ✅ UI moderna y responsive con TailwindCSS
 - ✅ Validaciones en frontend y backend
 - ✅ Manejo de errores centralizado
 - ✅ Rate limiting y sanitización de datos
 - ✅ Rutas protegidas por roles
+- ✅ **Componentes reutilizables** (Navbar, Alert)
 - ✅ Interfaz intuitiva y fácil de usar
 
 ## 🛠️ Tecnologías
@@ -66,6 +73,8 @@ Sistema web fullstack para la gestión de inventario de productos y registro de 
 - **Helmet** - Seguridad HTTP
 - **Rate Limiting** - Protección contra ataques
 - **Mongo Sanitize** - Prevención de NoSQL Injection
+- **@aws-sdk/client-s3** - Cliente S3 para Oracle Cloud Object Storage
+- **Multer** - Manejo de upload de archivos
 
 ### Frontend
 - **React 19.2.0** - Biblioteca UI
@@ -120,9 +129,18 @@ MONGO_URI=mongodb://localhost:27017/fs1project
 JWT_SECRET=tu_secreto_jwt_muy_seguro_aqui_cambiar_en_produccion
 FRONTEND_URL=http://localhost:5173
 NODE_ENV=development
+
+# Oracle Cloud Object Storage (S3 Compatible) - Para upload de imágenes
+AWS_ACCESS_KEY_ID=tu_access_key_id
+AWS_SECRET_ACCESS_KEY=tu_secret_access_key
+AWS_STORAGE_BUCKET_NAME=nombre_del_bucket
+AWS_S3_REGION_NAME=us-ashburn-1
+AWS_S3_ENDPOINT_URL=https://tu-namespace.compat.objectstorage.region.oraclecloud.com
 ```
 
-**⚠️ IMPORTANTE**: Cambiar `JWT_SECRET` por un valor aleatorio seguro en producción.
+**⚠️ IMPORTANTE**: 
+- Cambiar `JWT_SECRET` por un valor aleatorio seguro en producción
+- Configurar las credenciales de Oracle Cloud Object Storage para habilitar el upload de imágenes
 
 ### Frontend
 
@@ -367,7 +385,10 @@ Crea un nuevo usuario
 **Validaciones:**
 - Name: 2-100 caracteres, requerido
 - Email: formato válido, único, requerido
-- Password: mínimo 6 caracteres, requerido
+- Password: **mínimo 8 caracteres**, debe contener:
+  - Al menos una letra mayúscula (A-Z)
+  - Al menos una letra minúscula (a-z)
+  - Al menos un número (0-9)
 - Role: "admin" o "vendedor" (opcional, default: "vendedor")
 
 ---
@@ -708,13 +729,26 @@ Crea una nueva venta y actualiza automáticamente el stock de los productos
 ---
 
 #### `GET /api/sales/export` (Solo Admin)
-**⚠️ NOTA:** Este endpoint está referenciado en el frontend pero aún no está implementado en el backend. Se planea para exportar ventas en formato CSV.
+Exporta todas las ventas en formato CSV compatible con Excel.
 
 **Autenticación:** Requerida (solo admin)
 
-**Response esperado (cuando se implemente):**
-- Archivo CSV con todas las ventas
-- Headers: Fecha, Usuario, Productos, Cantidad, Precio Unitario, Total
+**Response:**
+- Archivo CSV descargable
+- Headers: Fecha, Usuario, Email, Producto, Categoría, Cantidad, Precio Unitario, Subtotal, Total Venta
+- Formato UTF-8 con BOM para compatibilidad con Excel
+- Nombre del archivo: `ventas-YYYY-MM-DD.csv`
+
+**Ejemplo de uso:**
+```bash
+curl -H "Authorization: Bearer <token>" \
+  http://localhost:3000/api/sales/export \
+  --output ventas.csv
+```
+
+**Errores:**
+- `401` - No autenticado
+- `403` - No tiene permisos (no es admin)
 
 ### Analytics
 
@@ -1002,11 +1036,14 @@ fs1Project/
 │   │   │   ├── authController.js  # Lógica de autenticación
 │   │   │   ├── productController.js
 │   │   │   ├── saleController.js
-│   │   │   └── userController.js
+│   │   │   ├── userController.js
+│   │   │   ├── analyticsController.js
+│   │   │   └── auditController.js
 │   │   ├── middlewares/
 │   │   │   ├── authMiddleware.js  # JWT y autorización
 │   │   │   ├── errorHandler.js    # Manejo de errores
-│   │   │   └── validation.js      # Validaciones
+│   │   │   ├── validation.js      # Validaciones
+│   │   │   └── uploadMiddleware.js # Validación de archivos
 │   │   ├── models/
 │   │   │   ├── User.js
 │   │   │   ├── Product.js
@@ -1018,9 +1055,12 @@ fs1Project/
 │   │   │   ├── saleRoutes.js
 │   │   │   ├── userRoutes.js
 │   │   │   ├── analyticsRoutes.js
-│   │   │   └── auditRoutes.js
-│   │   ├── utils/
-│   │   │   └── auditLogger.js
+│   │   │   ├── auditRoutes.js
+│   │   │   └── uploadRoutes.js    # Upload de imágenes
+│   │   ├── services/
+│   │   │   └── s3Storage.js        # Servicio de Oracle Cloud Storage
+│   │   └── utils/
+│   │       └── auditLogger.js
 │   │   └── app.js                 # Configuración Express
 │   ├── index.js                   # Punto de entrada
 │   ├── package.json
@@ -1031,19 +1071,25 @@ fs1Project/
 │   │   ├── api/
 │   │   │   └── axiosClient.jsx    # Cliente HTTP configurado
 │   │   ├── components/
-│   │   │   └── PrivateRoute.jsx   # Ruta protegida
+│   │   │   ├── Alert.jsx          # Componente de alertas reutilizable
+│   │   │   ├── Navbar.jsx         # Navbar reutilizable
+│   │   │   ├── PrivateRoute.jsx   # Ruta protegida
+│   │   │   └── StatCard.jsx       # Tarjeta de estadísticas
 │   │   ├── context/
 │   │   │   └── AuthContext.jsx    # Context de autenticación
 │   │   ├── pages/
 │   │   │   ├── Login.jsx
-│   │   │   ├── Dashboard.jsx
-│   │   │   ├── Products.jsx
-│   │   │   ├── Sales.jsx
-│   │   │   ├── Users.jsx
+│   │   │   ├── Login.jsx
+│   │   │   ├── Dashboard.jsx      # Con exportación CSV
+│   │   │   ├── Products.jsx       # Con upload de imágenes y modal
+│   │   │   ├── Sales.jsx          # Con filtros y edición de cantidades
+│   │   │   ├── Users.jsx          # Con validación de contraseña
 │   │   │   └── Audit.jsx
 │   │   ├── components/
+│   │   │   ├── Alert.jsx          # Componente de alertas reutilizable
+│   │   │   ├── Navbar.jsx         # Navbar reutilizable
 │   │   │   ├── PrivateRoute.jsx
-│   │   │   ├── Alert.jsx
+│   │   │   └── StatCard.jsx       # Tarjeta de estadísticas
 │   │   │   └── StatCard.jsx
 │   │   ├── App.jsx
 │   │   └── main.jsx
@@ -1128,8 +1174,11 @@ O usar un servicio como Vercel, Netlify, etc.
 - ✅ **Manejo de errores centralizado** sin exponer información sensible
 - ✅ **Validación de stock** antes de crear ventas
 - ✅ **Validación de precios/stock** no negativos
+- ✅ **Validación de contraseña segura** (mínimo 8 caracteres, mayúscula, minúscula, número)
 - ✅ **Sistema de auditoría** que registra todas las acciones importantes del sistema
 - ✅ **Analytics en tiempo real** con agregaciones de MongoDB para estadísticas precisas
+- ✅ **Trust proxy configurado** para manejar correctamente X-Forwarded-For headers (necesario para rate limiting detrás de Nginx)
+- ✅ **Upload seguro de imágenes** a Oracle Cloud Object Storage con validación de tipo y tamaño
 
 ### Headers de Seguridad (Helmet)
 
