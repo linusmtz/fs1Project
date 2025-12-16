@@ -2,6 +2,8 @@ import { useEffect, useState, useContext } from "react";
 import { Link } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
 import { AuthContext } from "../context/AuthContext";
+import Alert from "../components/Alert";
+import Navbar from "../components/Navbar";
 
 const SALES_PER_PAGE = 5;
 
@@ -326,48 +328,7 @@ export default function Sales() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50">
-      {/* Navbar */}
-      <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl shadow-sm border-b border-gray-200/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link
-              to="/"
-              className="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-all duration-200 group"
-            >
-              <svg
-                className="w-5 h-5 group-hover:-translate-x-1 transition-transform"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              <span className="font-semibold">Dashboard</span>
-            </Link>
-            <div className="text-center">
-              <p className="text-xs uppercase tracking-[0.3rem] text-indigo-500 font-semibold">Ventas</p>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                Registro de ventas
-              </h1>
-            </div>
-            <div className="hidden sm:flex items-center gap-4 text-sm font-medium">
-              <Link to="/products" className="text-gray-600 hover:text-indigo-600 transition-colors duration-200">
-                Productos
-              </Link>
-              {isAdmin && (
-                <>
-                  <Link to="/users" className="text-gray-600 hover:text-indigo-600 transition-colors duration-200">
-                    Usuarios
-                  </Link>
-                  <Link to="/audit" className="text-gray-600 hover:text-indigo-600 transition-colors duration-200">
-                    Auditoría
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar title="Registro de ventas" subtitle="Ventas" />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Header */}
@@ -459,33 +420,8 @@ export default function Sales() {
         </div>
 
         {/* Alerts */}
-        {success && (
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 text-green-800 px-6 py-4 rounded-xl flex items-center justify-between shadow-lg animate-slide-in">
-            <div className="flex items-center gap-3">
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span className="font-semibold text-lg">{success}</span>
-            </div>
-            <button onClick={() => setSuccess("")} className="text-green-700 hover:text-green-900 hover:scale-110 transition-transform">
-              ✕
-            </button>
-          </div>
-        )}
-
-        {error && (
-          <div className="bg-gradient-to-r from-red-50 to-rose-50 border-l-4 border-red-500 text-red-800 px-6 py-4 rounded-xl flex items-center justify-between shadow-lg animate-slide-in">
-            <div className="flex items-center gap-3">
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-              <span className="font-semibold">{error}</span>
-            </div>
-            <button onClick={() => setError("")} className="text-red-700 hover:text-red-900 hover:scale-110 transition-transform">
-              ✕
-            </button>
-          </div>
-        )}
+        <Alert variant="success" message={success} onClose={() => setSuccess("")} />
+        <Alert variant="error" message={error} onClose={() => setError("")} />
 
         {/* Formulario de Nueva Venta */}
         {showForm && (
