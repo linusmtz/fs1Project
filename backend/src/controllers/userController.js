@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import Sale from "../models/Sale.js";
 import { logAuditEvent } from "../utils/auditLogger.js";
 
 export const getUsers = async (req, res, next) => {
@@ -145,6 +146,18 @@ export const deleteUser = async (req, res, next) => {
 			email: user.email,
 			role: user.role
 		};
+
+		// Denormalizar datos del usuario en todas sus ventas antes de eliminar
+		// Esto preserva la información histórica aunque el usuario sea eliminado
+		await Sale.updateMany(
+			{ user: id },
+			{
+				$set: {
+					userName: user.name,
+					userEmail: user.email
+				}
+			}
+		);
 
 		// Eliminar usuario
 		await User.findByIdAndDelete(id);

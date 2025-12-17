@@ -1,5 +1,6 @@
 import Sale from "../models/Sale.js";
 import Product from "../models/Product.js";
+import User from "../models/User.js";
 import { logAuditEvent } from "../utils/auditLogger.js";
 
 export const createSale = async (req, res, next) => {
@@ -45,8 +46,13 @@ export const createSale = async (req, res, next) => {
 			});
 		}
 
+		// Obtener datos del usuario para denormalización
+		const user = await User.findById(req.user.id).select("name email");
+		
 		const sale = await Sale.create({
 			user: req.user.id,
+			userName: user?.name || "Usuario desconocido", // Guardar nombre del usuario
+			userEmail: user?.email || "N/A", // Guardar email del usuario
 			items: saleItems,
 			total
 		});
@@ -85,8 +91,13 @@ export const getSales = async (req, res, next) => {
 			.populate("items.product", "name category price");
 
 		// Asegurar que los items tengan datos incluso si el producto fue eliminado
+		// Y que el usuario tenga datos incluso si fue eliminado
 		const salesWithFallback = sales.map(sale => ({
 			...sale.toObject(),
+			// Usar datos denormalizados del usuario si fue eliminado
+			user: sale.user || null, // User puede ser null si fue eliminado
+			userName: sale.userName || (sale.user?.name || "Usuario eliminado"),
+			userEmail: sale.userEmail || (sale.user?.email || "N/A"),
 			items: sale.items.map(item => ({
 				...item,
 				product: item.product || null, // Product puede ser null si fue eliminado
@@ -134,8 +145,9 @@ export const exportSalesCSV = async (req, res, next) => {
 				minute: "2-digit"
 			});
 
-			const userName = sale.user?.name || "N/A";
-			const userEmail = sale.user?.email || "N/A";
+			// Usar datos denormalizados del usuario si fue eliminado
+			const userName = sale.userName || sale.user?.name || "Usuario eliminado";
+			const userEmail = sale.userEmail || sale.user?.email || "N/A";
 
 			if (sale.items && sale.items.length > 0) {
 				sale.items.forEach((item, index) => {

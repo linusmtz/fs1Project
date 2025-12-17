@@ -6,6 +6,10 @@ const saleSchema = new mongoose.Schema({
 		ref: "User",
 		required: true
 	},
+	// Datos denormalizados del usuario al momento de la venta
+	// Esto preserva la información histórica aunque el usuario sea eliminado
+	userName: { type: String, required: false }, // No requerido para compatibilidad con ventas antiguas
+	userEmail: { type: String, required: false }, // No requerido para compatibilidad con ventas antiguas
 	items: [
 		{
 			product: {

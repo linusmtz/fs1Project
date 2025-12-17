@@ -93,7 +93,7 @@ AWS_S3_ENDPOINT_URL=https://tu-namespace.compat.objectstorage.region.oraclecloud
 
 - **User**: nombre, email, password (hash), rol (`admin`, `vendedor`), `active`.
 - **Product**: nombre, categoría, precio, stock, descripción, `imageUrl` (URL de Oracle Cloud).
-- **Sale**: referencia a `user`, arreglo de ítems con:
+- **Sale**: referencia a `user`, datos denormalizados del usuario (`userName`, `userEmail`), arreglo de ítems con:
   - `product`: referencia al producto (ObjectId)
   - `productName`: nombre del producto al momento de la venta (denormalizado)
   - `productCategory`: categoría del producto al momento de la venta (denormalizado)
@@ -102,7 +102,9 @@ AWS_S3_ENDPOINT_URL=https://tu-namespace.compat.objectstorage.region.oraclecloud
   - `total`: suma total de la venta
 - **AuditLog**: acción, tipo/ID/nombre de entidad, usuario que realizó la acción y metadatos (p. ej., cantidad restock).
 
-> **Nota sobre denormalización en Sale**: Los campos `productName` y `productCategory` se guardan al momento de crear la venta para preservar la información histórica aunque el producto sea eliminado posteriormente.
+> **Nota sobre denormalización en Sale**: 
+> - Los campos `productName` y `productCategory` se guardan al momento de crear la venta para preservar la información histórica aunque el producto sea eliminado posteriormente.
+> - Los campos `userName` y `userEmail` se guardan al momento de crear la venta y se actualizan automáticamente cuando un usuario es eliminado, preservando la información histórica aunque el usuario sea eliminado del sistema.
 
 ## Middlewares y validaciones
 
@@ -125,7 +127,7 @@ AWS_S3_ENDPOINT_URL=https://tu-namespace.compat.objectstorage.region.oraclecloud
 | `POST` | `/api/users` (admin)            | Crea usuario con rol `admin` o `vendedor`.                    |
 | `PUT`  | `/api/users/:id` (admin)        | Actualiza nombre, email, rol o password.                      |
 | `PATCH`| `/api/users/:id/status` (admin) | Activa/desactiva cuentas (sin revalidar password/email).      |
-| `DELETE`| `/api/users/:id` (admin)     | Elimina usuario del sistema (no permite auto-eliminación).     |
+| `DELETE`| `/api/users/:id` (admin)     | Elimina usuario del sistema (no permite auto-eliminación). Denormaliza datos del usuario en todas sus ventas antes de eliminar.     |
 | `GET`  | `/api/products`                 | Lista productos (autenticado).                                |
 | `POST` | `/api/products` (admin)         | Crea producto con validaciones de precio/stock.               |
 | `PUT`  | `/api/products/:id` (admin)     | Actualiza producto con `runValidators`.                       |

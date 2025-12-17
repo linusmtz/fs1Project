@@ -884,8 +884,11 @@ export default function Dashboard() {
                                   <p className="text-xs text-gray-600 mb-2">
                                     Por:{" "}
                                     <span className="font-semibold text-gray-700">
-                                      {sale.user?.name || sale.user?.email || "Usuario desconocido"}
+                                      {sale.userName || sale.user?.name || sale.userEmail || sale.user?.email || "Usuario eliminado"}
                                     </span>
+                                    {(!sale.user && sale.userName) && (
+                                      <span className="text-xs text-amber-600 ml-2">(eliminado)</span>
+                                    )}
                                   </p>
                                   {sale.items && sale.items.length > 0 && (
                                     <div className="flex flex-wrap gap-2 mt-3">

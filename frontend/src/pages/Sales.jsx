@@ -863,8 +863,13 @@ export default function Sales() {
                             Venta #{sale._id?.slice(-6) || "N/A"}
                           </p>
                           <p className="text-lg font-bold text-gray-900">
-                            {sale.user?.name || sale.user?.email || "Usuario"}
+                            {sale.userName || sale.user?.name || sale.userEmail || sale.user?.email || "Usuario eliminado"}
                           </p>
+                          {(!sale.user && sale.userName) && (
+                            <p className="text-xs text-amber-600 font-medium mt-1">
+                              Usuario eliminado
+                            </p>
+                          )}
                           <p className="text-sm text-gray-600">
                             {new Date(sale.createdAt).toLocaleDateString("es-ES", {
                               year: "numeric",
