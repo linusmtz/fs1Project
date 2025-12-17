@@ -17,6 +17,12 @@ export const authMiddleware = (req, res, next) => {
 
 export const requireRole = (...roles) => {
 	return (req, res, next) => {
+		// Verificar que el usuario esté autenticado primero
+		if (!req.user) {
+			return res.status(401).json({ message: "No autenticado" });
+		}
+		
+		// Verificar que tenga el rol requerido
 		if (!roles.includes(req.user.role)) {
 			return res
 				.status(403)
