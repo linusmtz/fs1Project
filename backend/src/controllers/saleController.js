@@ -32,6 +32,8 @@ export const createSale = async (req, res, next) => {
 
 			saleItems.push({
 				product: product._id,
+				productName: product.name, // Guardar nombre del producto
+				productCategory: product.category, // Guardar categoría del producto
 				quantity: item.quantity,
 				price: product.price
 			});
@@ -82,7 +84,19 @@ export const getSales = async (req, res, next) => {
 			.populate("user", "name email")
 			.populate("items.product", "name category price");
 
-		res.json(sales);
+		// Asegurar que los items tengan datos incluso si el producto fue eliminado
+		const salesWithFallback = sales.map(sale => ({
+			...sale.toObject(),
+			items: sale.items.map(item => ({
+				...item,
+				product: item.product || null, // Product puede ser null si fue eliminado
+				// Usar datos denormalizados si el producto fue eliminado
+				productName: item.productName || (item.product?.name || "Producto eliminado"),
+				productCategory: item.productCategory || (item.product?.category || "N/A"),
+			}))
+		}));
+
+		res.json(salesWithFallback);
 
 	} catch (error) {
 		next(error);
@@ -125,8 +139,9 @@ export const exportSalesCSV = async (req, res, next) => {
 
 			if (sale.items && sale.items.length > 0) {
 				sale.items.forEach((item, index) => {
-					const productName = item.product?.name || "Producto eliminado";
-					const category = item.product?.category || "N/A";
+					// Usar datos denormalizados si el producto fue eliminado
+					const productName = item.productName || item.product?.name || "Producto eliminado";
+					const category = item.productCategory || item.product?.category || "N/A";
 					const quantity = item.quantity || 0;
 					const price = item.price || 0;
 					const subtotal = quantity * price;

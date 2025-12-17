@@ -13,6 +13,10 @@ const saleSchema = new mongoose.Schema({
 				ref: "Product",
 				required: true
 			},
+			// Datos denormalizados del producto al momento de la venta
+			// Esto preserva la información histórica aunque el producto sea eliminado
+			productName: { type: String, required: true },
+			productCategory: { type: String, required: true },
 			quantity: { type: Number, required: true, min: 1 },
 			price: { type: Number, required: true } 
 		}

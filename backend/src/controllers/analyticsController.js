@@ -77,6 +77,16 @@ export const getSummary = async (req, res, next) => {
 			.populate("items.product", "name category price")
 			.lean();
 
+		// Asegurar que los items tengan datos incluso si el producto fue eliminado
+		recentSales.forEach(sale => {
+			sale.items = sale.items.map(item => ({
+				...item,
+				product: item.product || null,
+				productName: item.productName || (item.product?.name || "Producto eliminado"),
+				productCategory: item.productCategory || (item.product?.category || "N/A"),
+			}));
+		});
+
 		const lowStockProducts = await Product.find({ stock: { $lte: 5 } })
 			.sort({ stock: 1 })
 			.limit(5)
