@@ -125,6 +125,7 @@ AWS_S3_ENDPOINT_URL=https://tu-namespace.compat.objectstorage.region.oraclecloud
 | `POST` | `/api/users` (admin)            | Crea usuario con rol `admin` o `vendedor`.                    |
 | `PUT`  | `/api/users/:id` (admin)        | Actualiza nombre, email, rol o password.                      |
 | `PATCH`| `/api/users/:id/status` (admin) | Activa/desactiva cuentas (sin revalidar password/email).      |
+| `DELETE`| `/api/users/:id` (admin)     | Elimina usuario del sistema (no permite auto-eliminación).     |
 | `GET`  | `/api/products`                 | Lista productos (autenticado).                                |
 | `POST` | `/api/products` (admin)         | Crea producto con validaciones de precio/stock.               |
 | `PUT`  | `/api/products/:id` (admin)     | Actualiza producto con `runValidators`.                       |

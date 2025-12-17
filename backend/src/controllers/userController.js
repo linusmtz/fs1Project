@@ -123,3 +123,52 @@ export const toggleUserStatus = async (req, res, next) => {
 	}
 };
 
+export const deleteUser = async (req, res, next) => {
+	try {
+		const { id } = req.params;
+
+		// Verificar que el usuario existe
+		const user = await User.findById(id);
+		if (!user) {
+			return res.status(404).json({ message: "Usuario no encontrado" });
+		}
+
+		// No permitir auto-eliminación
+		if (id === req.user.id) {
+			return res.status(400).json({ message: "No puedes eliminar tu propia cuenta" });
+		}
+
+		// Guardar información para auditoría antes de eliminar
+		const userInfo = {
+			id: user._id.toString(),
+			name: user.name,
+			email: user.email,
+			role: user.role
+		};
+
+		// Eliminar usuario
+		await User.findByIdAndDelete(id);
+
+		const timestamp = new Date().toISOString();
+		console.log(`[${timestamp}] User deleted - ID: ${userInfo.id}, Name: ${userInfo.name}, Email: ${userInfo.email}, Deleted by: ${req.user.id}`);
+
+		// Registrar auditoría
+		await logAuditEvent({
+			action: "USER_DELETED",
+			entityType: "user",
+			entityId: userInfo.id,
+			entityName: userInfo.name,
+			performedBy: req.user.id,
+			details: `Usuario "${userInfo.name}" (${userInfo.email}) eliminado del sistema`,
+			metadata: {
+				email: userInfo.email,
+				role: userInfo.role
+			}
+		});
+
+		res.json({ message: "Usuario eliminado correctamente" });
+	} catch (err) {
+		next(err);
+	}
+};
+

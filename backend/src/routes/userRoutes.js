@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getUsers, createUser, updateUserRole, toggleUserStatus } from "../controllers/userController.js";
+import { getUsers, createUser, updateUserRole, toggleUserStatus, deleteUser } from "../controllers/userController.js";
 import { authMiddleware, requireRole } from "../middlewares/authMiddleware.js";
 import { validateUser, validateMongoId } from "../middlewares/validation.js";
 
@@ -16,6 +16,9 @@ router.put("/:id", authMiddleware, requireRole("admin"), validateMongoId, update
 
 // ADMIN - Activar/Desactivar usuario
 router.patch("/:id/status", authMiddleware, requireRole("admin"), validateMongoId, toggleUserStatus);
+
+// ADMIN - Eliminar usuario
+router.delete("/:id", authMiddleware, requireRole("admin"), validateMongoId, deleteUser);
 
 export default router;
 

@@ -83,6 +83,22 @@ export default function Users() {
     }
   }
 
+  const handleDeleteUser = async (user) => {
+    if (!window.confirm(`¿Estás seguro de que deseas eliminar al usuario "${user.name}" (${user.email})? Esta acción no se puede deshacer.`)) {
+      return
+    }
+
+    try {
+      setError("")
+      setSuccess("")
+      await axiosClient.delete(`/users/${user._id}`)
+      setSuccess(`Usuario "${user.name}" eliminado correctamente`)
+      fetchUsers()
+    } catch (err) {
+      setError(err.response?.data?.message || "No se pudo eliminar el usuario")
+    }
+  }
+
   const validatePassword = (password) => {
     const requirements = {
       minLength: password.length >= 8,
@@ -546,16 +562,28 @@ export default function Users() {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <button
-                            onClick={() => toggleActive(user)}
-                            className={`px-4 py-2 rounded-lg text-sm font-bold border transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95 ${
-                              user.active
-                                ? "border-rose-300 text-rose-600 hover:bg-rose-50 bg-rose-50/50"
-                                : "border-emerald-300 text-emerald-600 hover:bg-emerald-50 bg-emerald-50/50"
-                            }`}
-                          >
-                            {user.active ? "Desactivar" : "Activar"}
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => toggleActive(user)}
+                              className={`px-4 py-2 rounded-lg text-sm font-bold border transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95 ${
+                                user.active
+                                  ? "border-rose-300 text-rose-600 hover:bg-rose-50 bg-rose-50/50"
+                                  : "border-emerald-300 text-emerald-600 hover:bg-emerald-50 bg-emerald-50/50"
+                              }`}
+                            >
+                              {user.active ? "Desactivar" : "Activar"}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(user)}
+                              disabled={user._id === auth.user?.id}
+                              className="px-4 py-2 rounded-lg text-sm font-bold border border-red-300 text-red-600 hover:bg-red-50 bg-red-50/50 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                              title={user._id === auth.user?.id ? "No puedes eliminar tu propia cuenta" : "Eliminar usuario"}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
